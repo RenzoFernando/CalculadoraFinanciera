@@ -1,4 +1,4 @@
-# Calculadora Financiera PRO
+# Calculadora Financiera
 
 Una herramienta web avanzada para la conversión precisa de tasas de interés, diseñada para estudiantes y profesionales en el campo de la modelación financiera y la contabilidad.
 

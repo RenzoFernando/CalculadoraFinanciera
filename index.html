@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Financiera PRO para Modelación</title>
+    <title>Calculadora Financiera PRO</title>
 
     <!-- Enlace a la hoja de estilos externa -->
     <link rel="stylesheet" href="assets/style.css">
@@ -12,20 +12,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Fuente de Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="p-4 md:p-6">
+<body class="p-4 md:p-8">
 
 <div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Calculadora Financiera PRO para Modelación</h1>
+    <h1 class="main-title text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">Calculadora Financiera PRO</h1>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
         <!-- Columna de Controles -->
         <div class="lg:col-span-4 space-y-6">
             <!-- Tasa de Partida -->
-            <div class="card p-5">
-                <h2 class="text-xl font-bold mb-4 text-gray-700">1. Tasa de Partida</h2>
+            <div class="card p-6">
+                <h2 class="card-title">1. Tasa de Partida</h2>
                 <div class="space-y-4">
                     <div class="input-group">
                         <label for="tasaPartidaValor">Valor de la Tasa (%)</label>
@@ -44,30 +44,34 @@
                             <option value="Anual">Anual</option>
                             <option value="Semestral">Semestral</option>
                             <option value="Cuatrimestral">Cuatrimestral</option>
-                            <option value="Trimestral">Trimestral</option>
+                            <option value="Trimestral" selected>Trimestral</option>
                             <option value="Bimestral">Bimestral</option>
-                            <option value="Mensual" selected>Mensual</option>
+                            <option value="Mensual">Mensual</option>
                             <option value="Diaria">Diaria</option>
                         </select>
+                    </div>
+                    <div class="input-group hidden" id="partidaDiasContainer">
+                        <label for="tasaPartidaDias">Días Específicos del Periodo</label>
+                        <input type="number" id="tasaPartidaDias" class="input-field" placeholder="Ej: 90">
                     </div>
                     <div class="input-group">
                         <label for="tasaPartidaCap">Capitalización</label>
                         <select id="tasaPartidaCap" class="input-field">
-                            <option value="Vencida">Vencida</option>
-                            <option value="Anticipada" selected>Anticipada</option>
+                            <option value="Vencida" selected>Vencida</option>
+                            <option value="Anticipada">Anticipada</option>
                         </select>
                     </div>
                 </div>
             </div>
 
             <!-- Tasa de Destino -->
-            <div class="card p-5">
-                <h2 class="text-xl font-bold mb-4 text-gray-700">2. Tasa de Destino</h2>
+            <div class="card p-6">
+                <h2 class="card-title">2. Tasa de Destino</h2>
                 <div class="space-y-4">
                     <div class="input-group">
                         <label for="tasaDestinoTipo">Tipo</label>
                         <select id="tasaDestinoTipo" class="input-field">
-                            <option value="Efectiva Anual">Efectiva Anual</option>
+                            <option value="Efectiva Anual" selected>Efectiva Anual</option>
                             <option value="Nominal">Nominal</option>
                         </select>
                     </div>
@@ -83,6 +87,10 @@
                             <option value="Diaria">Diaria</option>
                         </select>
                     </div>
+                    <div class="input-group hidden" id="destinoDiasContainer">
+                        <label for="tasaDestinoDias">Días Específicos del Periodo</label>
+                        <input type="number" id="tasaDestinoDias" class="input-field" placeholder="Ej: 30">
+                    </div>
                     <div class="input-group">
                         <label for="tasaDestinoCap">Capitalización</label>
                         <select id="tasaDestinoCap" class="input-field">
@@ -96,32 +104,26 @@
 
         <!-- Columna de Resultados -->
         <div class="lg:col-span-8">
-            <div class="card p-5">
-                <h2 class="text-xl font-bold mb-4 text-gray-700">3. Resultado y Proceso</h2>
-
-                <!-- Resultado Principal -->
+            <div class="card p-6">
+                <h2 class="card-title">3. Resultado y Proceso</h2>
                 <div class="result-box">
-                    <div id="resultadoValor" class="result-value">32.7528%</div>
-                    <div id="resultadoLabel" class="result-label">Efectiva Anual</div>
+                    <div id="resultadoValor" class="result-value">--.--%</div>
+                    <div id="resultadoLabel" class="result-label">Esperando cálculo...</div>
                 </div>
-
-                <!-- Diagrama de Flujo -->
-                <div class="my-6">
-                    <h3 class="text-lg font-semibold text-center mb-3 text-gray-600">Diagrama de Flujo de Conversión</h3>
+                <div class="my-8">
+                    <h3 class="sub-title">Diagrama de Flujo de Conversión</h3>
                     <div class="grid grid-cols-5 gap-2 items-center text-center">
-                        <div id="flujoPartida" class="p-2 bg-gray-100 rounded">Nominal Anual</div>
-                        <div id="flujoFlecha1" class="flow-arrow">÷</div>
-                        <div id="flujoPeriodica" class="p-2 bg-gray-100 rounded">Periódica</div>
-                        <div id="flujoFlecha2" class="flow-arrow">^</div>
-                        <div id="flujoDestino" class="p-2 bg-blue-100 border border-blue-200 rounded font-semibold">Efectiva Anual</div>
+                        <div id="flujoPartida" class="flow-box"></div>
+                        <div id="flujoFlecha1" class="flow-arrow"></div>
+                        <div id="flujoPeriodica" class="flow-box pivot">Pivote E.A.</div>
+                        <div id="flujoFlecha2" class="flow-arrow"></div>
+                        <div id="flujoDestino" class="flow-box result"></div>
                     </div>
                 </div>
-
-                <!-- Memoria de Cálculo -->
                 <div>
-                    <h3 class="text-lg font-semibold mb-3 text-gray-600">Memoria de Cálculo</h3>
+                    <h3 class="sub-title">Memoria de Cálculo</h3>
                     <div id="memoriaCalculo" class="calculation-memory">
-                        <!-- Pasos generados por JS -->
+                        <p>Selecciona las tasas para ver el proceso de conversión paso a paso.</p>
                     </div>
                 </div>
             </div>

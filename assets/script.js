@@ -1,4 +1,4 @@
-// Lógica para la Calculadora Financiera PRO v2
+// Lógica para la Calculadora Financiera PRO v5
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elementos del DOM ---
@@ -22,14 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
             valor: document.getElementById('resultadoValor'),
             label: document.getElementById('resultadoLabel')
         },
-        flujo: {
-            partida: document.getElementById('flujoPartida'),
-            flecha1: document.getElementById('flujoFlecha1'),
-            periodica: document.getElementById('flujoPeriodica'),
-            flecha2: document.getElementById('flujoFlecha2'),
-            destino: document.getElementById('flujoDestino')
-        },
-        memoriaCalculo: document.getElementById('memoriaCalculo')
+        memoriaCalculo: document.getElementById('memoriaCalculo'),
+        tablaPeriodicas: document.getElementById('tablaPeriodicas'),
+        tablaNominales: document.getElementById('tablaNominales')
     };
 
     // --- Datos de Configuración ---
@@ -37,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'Anual': 1, 'Semestral': 2, 'Cuatrimestral': 3, 'Trimestral': 4,
         'Bimestral': 6, 'Mensual': 12, 'Diaria': 360
     };
+    const periodosOrdenados = ['Anual', 'Semestral', 'Cuatrimestral', 'Trimestral', 'Bimestral', 'Mensual', 'Diaria'];
+
 
     // --- Lógica Principal ---
     function calcularConversion() {
@@ -60,28 +57,26 @@ document.addEventListener('DOMContentLoaded', () => {
         let ea = 0;
         if (tPartida === 'Efectiva Anual') {
             ea = vPartida;
-            memoria.push('<p>1. Se toma la <strong>Tasa Efectiva Anual (E.A.)</strong> de partida como pivote.</p>');
+            memoria.push('<p><strong>1. Punto de Partida (Pivote):</strong> Se usa la Tasa Efectiva Anual de entrada como el pivote universal para la conversión.</p>');
         } else {
             const esPeriodoCustom = (pPartida === 'Diaria' && dPartida > 0);
             const nperPartida = esPeriodoCustom ? 360 / dPartida : periodosMap[pPartida];
             const periodoTexto = esPeriodoCustom ? `${dPartida} días` : pPartida;
 
             let ipPartida = vPartida / (esPeriodoCustom ? 1 : nperPartida);
-            memoria.push(`<p>1. Tasa periódica (${periodoTexto}): <strong>${(ipPartida * 100).toFixed(4)}%</strong>.</p>`);
+            memoria.push(`<p><strong>1. Descomponer a Tasa Periódica:</strong> Se divide la tasa nominal para encontrar la tasa del ciclo (${periodoTexto}). <span class="formula">${(vPartida*100).toFixed(2)}% / ${esPeriodoCustom ? 1 : nperPartida} = ${(ipPartida * 100).toFixed(4)}%</span></p>`);
 
             if (cPartida === 'Anticipada') {
                 const ipAnticipada = ipPartida;
                 ipPartida = ipPartida / (1 - ipPartida);
-                memoria.push(`<p>2. Se convierte T.P. Anticipada a Vencida: <strong>${(ipPartida * 100).toFixed(4)}%</strong>.</p>`);
-            } else {
-                memoria.push('<p>2. La tasa periódica de partida ya es vencida.</p>');
+                memoria.push(`<p><strong>2. Ajuste a Vencida:</strong> Se convierte la tasa periódica anticipada a su equivalente vencida para poder capitalizarla. <span class="formula">${(ipAnticipada * 100).toFixed(4)}% / (1 - ${(ipAnticipada * 100).toFixed(4)}%) = ${(ipPartida * 100).toFixed(4)}%</span></p>`);
             }
 
             ea = Math.pow(1 + ipPartida, nperPartida) - 1;
-            memoria.push(`<p>3. Se calcula la <strong>E.A.</strong> pivote: <strong>${(ea * 100).toFixed(4)}%</strong>.</p>`);
+            memoria.push(`<p><strong>3. Capitalizar a Efectiva Anual (Pivote):</strong> Se compone la tasa periódica vencida para hallar la rentabilidad anual real (E.A.), que sirve como pivote. <span class="formula">(1 + ${(ipPartida * 100).toFixed(4)}%)^${nperPartida.toFixed(2)} - 1 = ${(ea * 100).toFixed(4)}%</span></p>`);
         }
 
-        // 3. LEER VALORES DE DESTINO Y CALCULAR RESULTADO
+        // 3. LEER VALORES DE DESTINO Y CALCULAR RESULTADO DIRECTO
         const tDestino = ui.destino.tipo.value;
         const pDestino = ui.destino.periodo.value;
         const cDestino = ui.destino.cap.value;
@@ -93,37 +88,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tDestino === 'Efectiva Anual') {
             resultadoFinal = ea;
             labelFinal = `Efectiva Anual`;
-            memoria.push('<p>4. El destino es la <strong>E.A.</strong>, se muestra el valor pivote.</p>');
+            memoria.push('<p><strong>4. Resultado Final:</strong> El destino solicitado es la Tasa Efectiva Anual, por lo que se muestra el valor pivote calculado.</p>');
         } else {
             const esPeriodoCustom = (pDestino === 'Diaria' && dDestino > 0);
             const nperDestino = esPeriodoCustom ? 360 / dDestino : periodosMap[pDestino];
             const periodoTexto = esPeriodoCustom ? `${dDestino} días` : pDestino;
 
             let ipDestino = Math.pow(1 + ea, 1 / nperDestino) - 1;
-            memoria.push(`<p>4. Se calcula T.P. Vencida de destino (${periodoTexto}): <strong>${(ipDestino * 100).toFixed(4)}%</strong>.</p>`);
+            memoria.push(`<p><strong>4. Descomponer E.A. a Periódica Vencida:</strong> Se descompone la E.A. para encontrar la tasa periódica vencida del ciclo de destino (${periodoTexto}). <span class="formula">(1 + ${(ea * 100).toFixed(4)}%)^(1/${nperDestino.toFixed(2)}) - 1 = ${(ipDestino * 100).toFixed(4)}%</span></p>`);
 
             if (cDestino === 'Anticipada') {
+                const ipVencida = ipDestino;
                 ipDestino = ipDestino / (1 + ipDestino);
-                memoria.push(`<p>5. Se convierte T.P. Vencida a Anticipada: <strong>${(ipDestino * 100).toFixed(4)}%</strong>.</p>`);
-            } else {
-                memoria.push('<p>5. El destino es una tasa periódica vencida.</p>');
+                memoria.push(`<p><strong>5. Ajuste a Anticipada:</strong> Se convierte la tasa periódica vencida a su equivalente anticipada, según lo solicitado. <span class="formula">${(ipVencida * 100).toFixed(4)}% / (1 + ${(ipVencida * 100).toFixed(4)}%) = ${(ipDestino * 100).toFixed(4)}%</span></p>`);
             }
 
-            resultadoFinal = ipDestino * (esPeriodoCustom ? 1 : nperDestino);
-            labelFinal = `Nominal ${pDestino} ${cDestino}`;
-            if(esPeriodoCustom) labelFinal = `Tasa para ${dDestino} días ${cDestino}`;
-
-            memoria.push(`<p>6. Se calcula la <strong>Tasa Final</strong> de destino: <strong>${(resultadoFinal * 100).toFixed(4)}%</strong>.</p>`);
+            if (tDestino === 'Periódica') {
+                resultadoFinal = ipDestino;
+                labelFinal = `Periódica ${pDestino} ${cDestino}`;
+                memoria.push(`<p><strong>6. Resultado Final:</strong> El destino solicitado es una Tasa Periódica, por lo que se muestra el valor calculado en el paso anterior.</p>`);
+            } else { // Nominal
+                resultadoFinal = ipDestino * (esPeriodoCustom ? 1 : nperDestino);
+                labelFinal = `Nominal ${pDestino} ${cDestino}`;
+                if(esPeriodoCustom) labelFinal = `Tasa para ${dDestino} días ${cDestino}`;
+                memoria.push(`<p><strong>6. Componer a Tasa Nominal:</strong> Se multiplica la tasa periódica de destino por sus períodos para obtener la tasa nominal anual solicitada. <span class="formula">${(ipDestino * 100).toFixed(4)}% * ${esPeriodoCustom ? 1 : nperDestino} = ${(resultadoFinal * 100).toFixed(4)}%</span></p>`);
+            }
         }
 
-        // 4. ACTUALIZAR UI
+        // 4. ACTUALIZAR UI PRINCIPAL
         ui.resultado.valor.textContent = (resultadoFinal * 100).toFixed(4) + '%';
         ui.resultado.label.textContent = labelFinal;
         ui.memoriaCalculo.innerHTML = memoria.join('');
-        actualizarFlujo(tPartida, tDestino);
+
+        // 5. POBLAR TABLAS DE EQUIVALENCIA
+        popularTablasDeEquivalencia(ea);
     }
 
     // --- Funciones Auxiliares ---
+    function popularTablasDeEquivalencia(ea) {
+        ui.tablaPeriodicas.innerHTML = '';
+        ui.tablaNominales.innerHTML = '';
+        const formatPercent = val => (val * 100).toFixed(4) + '%';
+
+        periodosOrdenados.forEach(p_nombre => {
+            const nper = periodosMap[p_nombre];
+            const ip_v = Math.pow(1 + ea, 1 / nper) - 1;
+            const ip_a = ip_v / (1 + ip_v);
+            const nom_v = ip_v * nper;
+            const nom_a = ip_a * nper;
+
+            const rowP = `
+                <tr>
+                    <td>${p_nombre}</td>
+                    <td class="text-right">${formatPercent(ip_v)}</td>
+                    <td class="text-right">${formatPercent(ip_a)}</td>
+                </tr>`;
+            ui.tablaPeriodicas.innerHTML += rowP;
+
+            const rowN = `
+                <tr>
+                    <td>${p_nombre}</td>
+                    <td class="text-right">${formatPercent(nom_v)}</td>
+                    <td class="text-right">${formatPercent(nom_a)}</td>
+                </tr>`;
+            ui.tablaNominales.innerHTML += rowN;
+        });
+    }
+
     function actualizarVisibilidadCampos() {
         const esPartidaEA = ui.partida.tipo.value === 'Efectiva Anual';
         ui.partida.periodo.disabled = esPartidaEA;
@@ -134,13 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.destino.periodo.disabled = esDestinoEA;
         ui.destino.cap.disabled = esDestinoEA;
         ui.destino.diasContainer.classList.toggle('hidden', ui.destino.periodo.value !== 'Diaria' || esDestinoEA);
-    }
-
-    function actualizarFlujo(tPartida, tDestino) {
-        ui.flujo.partida.textContent = tPartida;
-        ui.flujo.flecha1.textContent = '→';
-        ui.flujo.flecha2.textContent = '→';
-        ui.flujo.destino.textContent = tDestino;
     }
 
     // --- Event Listeners ---

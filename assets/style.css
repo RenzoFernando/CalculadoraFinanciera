@@ -1,12 +1,16 @@
-/* Estilos para la Calculadora Financiera PRO v2 */
+/* Estilos para la Calculadora Financiera PRO v5 */
 
 body {
     font-family: 'Inter', sans-serif;
     background-color: #f8fafc; /* slate-50 */
+    color: #334155; /* slate-700 */
 }
 
 .main-title {
     color: #1e293b; /* slate-800 */
+    text-align: center;
+    font-size: 2.25rem; /* 36px */
+    font-weight: 800;
 }
 
 .card {
@@ -14,13 +18,21 @@ body {
     border-radius: 0.75rem;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
     border: 1px solid #e2e8f0; /* slate-200 */
+    transition: all 0.3s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
 }
 
 .card-title {
     font-size: 1.25rem;
     font-weight: 700;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
     color: #334155; /* slate-700 */
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
 }
 
 .sub-title {
@@ -45,7 +57,7 @@ body {
     border: 1px solid #cbd5e1; /* slate-300 */
     border-radius: 0.375rem;
     transition: all 0.2s ease-in-out;
-    background-color: #f8fafc; /* slate-50 */
+    background-color: #fdfdff;
 }
 
 .input-field:focus {
@@ -61,15 +73,16 @@ body {
 }
 
 .result-box {
-    background-color: #ecfdf5; /* emerald-50 */
-    border: 1px solid #a7f3d0; /* emerald-200 */
-    border-radius: 0.5rem;
+    background: linear-gradient(145deg, #f0fdf4, #dcfce7); /* emerald-50, green-100 */
+    border: 1px solid #bbf7d0; /* green-200 */
+    border-radius: 0.75rem;
     padding: 1.5rem;
     text-align: center;
+    box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 }
 
 .result-value {
-    font-size: 2.5rem;
+    font-size: 2.75rem;
     font-weight: 800;
     color: #047857; /* emerald-700 */
     line-height: 1;
@@ -82,57 +95,87 @@ body {
     font-weight: 500;
 }
 
-.flow-box {
-    padding: 0.5rem;
-    background-color: #f1f5f9; /* slate-100 */
-    border: 1px solid #e2e8f0; /* slate-200 */
-    border-radius: 0.375rem;
-    font-weight: 500;
-    color: #475569; /* slate-600 */
-}
-
-.flow-box.pivot {
-    font-weight: 600;
-    color: #1e293b; /* slate-800 */
-    background-color: #f0f9ff; /* sky-50 */
-    border-color: #bae6fd; /* sky-200 */
-}
-
-.flow-box.result {
-    font-weight: 600;
-    background-color: #dcfce7; /* green-100 */
-    border-color: #bbf7d0; /* green-200 */
-    color: #166534; /* green-800 */
-}
-
-.flow-arrow {
-    font-size: 1.5rem;
-    color: #94a3b8; /* slate-400 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .calculation-memory {
     background-color: #f1f5f9; /* slate-100 */
-    border: 1px solid #e2e8f0; /* slate-200 */
-    border-radius: 0.5rem;
-    padding: 1rem;
+    border-left: 3px solid #cbd5e1; /* slate-300 */
+    border-radius: 0.25rem;
+    padding: 1.5rem;
     font-family: 'Courier New', Courier, monospace;
     font-size: 0.875rem;
     color: #334155; /* slate-700 */
-    min-height: 150px;
+    min-height: 180px;
 }
 
 .calculation-memory p {
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     line-height: 1.6;
 }
 
 .calculation-memory strong {
     color: #020617; /* slate-900 */
+    font-weight: bold;
+}
+
+.calculation-memory .formula {
+    color: #4338ca; /* indigo-700 */
+    font-style: italic;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.equivalency-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.equivalency-table th, .equivalency-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0; /* slate-200 */
+}
+
+.equivalency-table th {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569; /* slate-600 */
+}
+
+.equivalency-table td {
+    font-size: 0.875rem;
+    color: #334155; /* slate-700 */
+}
+
+.equivalency-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.equivalency-table tbody tr:hover {
+    background-color: #f8fafc; /* slate-50 */
 }
 
 .hidden {
     display: none;
+}
+
+.main-footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding: 1.5rem;
+    font-size: 0.875rem;
+    color: #64748b; /* slate-500 */
+    border-top: 1px solid #e2e8f0; /* slate-200 */
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    color: #475569;
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+.github-link:hover {
+    color: #1e293b;
 }

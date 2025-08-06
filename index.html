@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Financiera PRO</title>
+    <title>Calculadora Financiera</title>
 
     <!-- Enlace a la hoja de estilos externa -->
     <link rel="stylesheet" href="assets/style.css">
@@ -17,34 +17,34 @@
 <body class="p-4 md:p-8">
 
 <div class="max-w-7xl mx-auto">
-    <h1 class="main-title text-3xl md:text-4xl font-extrabold text-center text-gray-800 mb-8">Calculadora Financiera PRO</h1>
+    <h1 class="main-title">Calculadora Financiera</h1>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
 
         <!-- Columna de Controles -->
-        <div class="lg:col-span-4 space-y-6">
+        <div class="lg:col-span-4 space-y-8">
             <!-- Tasa de Partida -->
             <div class="card p-6">
                 <h2 class="card-title">1. Tasa de Partida</h2>
                 <div class="space-y-4">
                     <div class="input-group">
                         <label for="tasaPartidaValor">Valor de la Tasa (%)</label>
-                        <input type="number" id="tasaPartidaValor" class="input-field" value="28" step="any">
+                        <input type="number" id="tasaPartidaValor" class="input-field" value="30" step="any">
                     </div>
                     <div class="input-group">
                         <label for="tasaPartidaTipo">Tipo</label>
                         <select id="tasaPartidaTipo" class="input-field">
                             <option value="Nominal">Nominal</option>
-                            <option value="Efectiva Anual">Efectiva Anual</option>
+                            <option value="Efectiva Anual" selected>Efectiva Anual</option>
                         </select>
                     </div>
                     <div class="input-group">
                         <label for="tasaPartidaPeriodo">Periodo</label>
                         <select id="tasaPartidaPeriodo" class="input-field">
-                            <option value="Anual">Anual</option>
+                            <option value="Anual" selected>Anual</option>
                             <option value="Semestral">Semestral</option>
                             <option value="Cuatrimestral">Cuatrimestral</option>
-                            <option value="Trimestral" selected>Trimestral</option>
+                            <option value="Trimestral">Trimestral</option>
                             <option value="Bimestral">Bimestral</option>
                             <option value="Mensual">Mensual</option>
                             <option value="Diaria">Diaria</option>
@@ -57,7 +57,7 @@
                     <div class="input-group">
                         <label for="tasaPartidaCap">Capitalización</label>
                         <select id="tasaPartidaCap" class="input-field">
-                            <option value="Vencida" selected>Vencida</option>
+                            <option value="Vencida">Vencida</option>
                             <option value="Anticipada">Anticipada</option>
                         </select>
                     </div>
@@ -71,18 +71,19 @@
                     <div class="input-group">
                         <label for="tasaDestinoTipo">Tipo</label>
                         <select id="tasaDestinoTipo" class="input-field">
-                            <option value="Efectiva Anual" selected>Efectiva Anual</option>
-                            <option value="Nominal">Nominal</option>
+                            <option value="Efectiva Anual">Efectiva Anual</option>
+                            <option value="Nominal" selected>Nominal</option>
+                            <option value="Periódica">Periódica</option>
                         </select>
                     </div>
                     <div class="input-group">
                         <label for="tasaDestinoPeriodo">Periodo</label>
                         <select id="tasaDestinoPeriodo" class="input-field">
-                            <option value="Anual" selected>Anual</option>
+                            <option value="Anual">Anual</option>
                             <option value="Semestral">Semestral</option>
                             <option value="Cuatrimestral">Cuatrimestral</option>
                             <option value="Trimestral">Trimestral</option>
-                            <option value="Bimestral">Bimestral</option>
+                            <option value="Bimestral" selected>Bimestral</option>
                             <option value="Mensual">Mensual</option>
                             <option value="Diaria">Diaria</option>
                         </select>
@@ -95,7 +96,7 @@
                         <label for="tasaDestinoCap">Capitalización</label>
                         <select id="tasaDestinoCap" class="input-field">
                             <option value="Vencida">Vencida</option>
-                            <option value="Anticipada">Anticipada</option>
+                            <option value="Anticipada" selected>Anticipada</option>
                         </select>
                     </div>
                 </div>
@@ -104,24 +105,16 @@
 
         <!-- Columna de Resultados -->
         <div class="lg:col-span-8">
-            <div class="card p-6">
-                <h2 class="card-title">3. Resultado y Proceso</h2>
-                <div class="result-box">
-                    <div id="resultadoValor" class="result-value">--.--%</div>
-                    <div id="resultadoLabel" class="result-label">Esperando cálculo...</div>
-                </div>
-                <div class="my-8">
-                    <h3 class="sub-title">Diagrama de Flujo de Conversión</h3>
-                    <div class="grid grid-cols-5 gap-2 items-center text-center">
-                        <div id="flujoPartida" class="flow-box"></div>
-                        <div id="flujoFlecha1" class="flow-arrow"></div>
-                        <div id="flujoPeriodica" class="flow-box pivot">Pivote E.A.</div>
-                        <div id="flujoFlecha2" class="flow-arrow"></div>
-                        <div id="flujoDestino" class="flow-box result"></div>
+            <div class="card p-6 space-y-8">
+                <div>
+                    <h2 class="card-title">3. Resultado de la Conversión Directa</h2>
+                    <div class="result-box">
+                        <div id="resultadoValor" class="result-value">--.--%</div>
+                        <div id="resultadoLabel" class="result-label">Esperando cálculo...</div>
                     </div>
                 </div>
                 <div>
-                    <h3 class="sub-title">Memoria de Cálculo</h3>
+                    <h3 class="sub-title">Memoria de Cálculo Detallada</h3>
                     <div id="memoriaCalculo" class="calculation-memory">
                         <p>Selecciona las tasas para ver el proceso de conversión paso a paso.</p>
                     </div>
@@ -129,7 +122,48 @@
             </div>
         </div>
     </div>
+
+    <!-- Nueva Sección de Tablas de Equivalencia -->
+    <div class="card p-6 mt-8">
+        <h2 class="card-title">4. Tabla Completa de Equivalencias (Basada en la E.A. Pivote)</h2>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
+            <div>
+                <h3 class="sub-title">Tasas Periódicas Equivalentes</h3>
+                <table class="equivalency-table">
+                    <thead>
+                    <tr>
+                        <th>Periodo</th>
+                        <th>Tasa Vencida (ip%v)</th>
+                        <th>Tasa Anticipada (ip%a)</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tablaPeriodicas"></tbody>
+                </table>
+            </div>
+            <div>
+                <h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3>
+                <table class="equivalency-table">
+                    <thead>
+                    <tr>
+                        <th>Periodo</th>
+                        <th>Nominal Vencida</th>
+                        <th>Nominal Anticipada</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tablaNominales"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+
+<footer class="main-footer">
+    <p>© 2025 Renzo Fernando Mosquera Daza. Todos los derechos reservados.</p>
+    <a href="https://github.com/RenzoFernando/CalculadoraFinanciera" target="_blank" class="github-link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+        <span>Ver en GitHub</span>
+    </a>
+</footer>
 
 <!-- Enlace al archivo JavaScript externo -->
 <script src="assets/script.js"></script>

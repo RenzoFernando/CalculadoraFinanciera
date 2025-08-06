@@ -36,9 +36,7 @@ El proyecto está organizado de manera clara y mantenible:
 
 ```
 CalculadoraFinancieraPro/
-│
 ├── index.html 
-│
 └── assets/
       ├── style.css  
       └── script.js 

@@ -21,6 +21,10 @@
     --light-memory-formula: #4338ca; /* indigo-700 */
     --light-step-bg: #e0e7ff; /* indigo-100 */
     --light-step-text: #4338ca; /* indigo-700 */
+    --light-copy-btn-bg: rgba(0,0,0,0.05);
+    --light-copy-btn-hover-bg: rgba(0,0,0,0.1);
+    --light-copy-btn-color: #64748b; /* slate-500 */
+    --light-copy-btn-success-color: #059669; /* green-600 */
 
     /* --- Tema Oscuro --- */
     --dark-bg: #020617; /* slate-950 */
@@ -42,6 +46,10 @@
     --dark-memory-formula: #818cf8; /* indigo-400 */
     --dark-step-bg: #312e81; /* indigo-900 */
     --dark-step-text: #a5b4fc; /* indigo-300 */
+    --dark-copy-btn-bg: rgba(255,255,255,0.1);
+    --dark-copy-btn-hover-bg: rgba(255,255,255,0.2);
+    --dark-copy-btn-color: #94a3b8; /* slate-400 */
+    --dark-copy-btn-success-color: #6ee7b7; /* green-300 */
 }
 
 /* --- Estilos Base y Tema Claro por defecto --- */
@@ -68,7 +76,7 @@ body {
     gap: 2rem;
 }
 @media (min-width: 1024px) {
-    .main-grid { grid-template-columns: 4fr 5fr; }
+    .main-grid { grid-template-columns: 4fr 5fr; align-items: start; }
 }
 
 .controls-column { display: flex; flex-direction: column; gap: 2rem; }
@@ -105,6 +113,7 @@ body {
     color: var(--light-step-text);
     font-size: 0.875rem;
     font-weight: 600;
+    flex-shrink: 0;
 }
 
 .sub-title {
@@ -138,6 +147,16 @@ body {
     box-shadow: 0 0 0 3px var(--light-accent-glow);
     border-color: var(--light-accent);
 }
+/* Ocultar flechas en input number */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
 
 .result-box {
     background: var(--light-result-bg);
@@ -147,18 +166,27 @@ body {
     text-align: center;
     box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 }
+.result-value-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
 .result-value {
     font-size: 3.5rem;
     font-weight: 800;
     color: var(--light-result-value);
     line-height: 1;
     letter-spacing: -0.05em;
+    transition: color 0.3s;
 }
 .result-label {
     font-size: 1rem;
     color: var(--light-result-label);
     margin-top: 0.75rem;
     font-weight: 500;
+    min-height: 1.5rem; /* Evita que el layout salte */
+    transition: color 0.3s;
 }
 
 .calculation-memory {
@@ -175,7 +203,10 @@ body {
 .calculation-memory p:last-child { margin-bottom: 0; }
 .calculation-memory strong { color: var(--light-memory-strong); font-weight: bold; }
 .calculation-memory .formula-wrapper {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     margin-top: 0.5rem;
     padding: 0.75rem;
     background-color: rgba(0,0,0,0.02);
@@ -183,7 +214,12 @@ body {
     font-size: 1rem;
 }
 .calculation-memory .katex { color: var(--light-memory-formula); }
-.calculation-memory .placeholder-text { font-style: italic; text-align: center; padding-top: 3rem; }
+.placeholder-text, .placeholder-text-table {
+    font-style: italic;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--light-text-secondary);
+}
 
 .equivalency-section { margin-top: 3rem; }
 .equivalency-grid {
@@ -209,23 +245,45 @@ body {
 .page-footer {
     text-align: center;
     margin-top: 4rem;
-    padding: 2rem;
+    padding-top: 2rem;
     font-size: 0.875rem;
     color: var(--light-text-secondary);
     border-top: 1px solid var(--light-border);
+}
+.page-footer-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+@media (min-width: 768px) {
+    .page-footer-content {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    .footer-text {
+        text-align: left;
+    }
+}
+.footer-text p { margin: 0; }
+.project-purpose {
+    font-size: 0.8rem;
+    font-style: italic;
+    margin-top: 0.25rem;
 }
 .github-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.5rem;
     color: var(--light-text-secondary);
     text-decoration: none;
     transition: color 0.2s ease-in-out;
+    flex-shrink: 0;
 }
 .github-link:hover { color: var(--light-text-primary); }
 
-.theme-switcher-container { position: absolute; top: 1rem; right: 1rem; }
+.theme-switcher-container { position: absolute; top: 1rem; right: 1rem; z-index: 10; }
 .theme-toggle-button {
     background-color: var(--light-bg-card);
     border: 1px solid var(--light-border);
@@ -242,6 +300,75 @@ body {
 
 .hidden { display: none; }
 
+/* --- Botones de Copiar --- */
+.copy-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    flex-shrink: 0;
+}
+.copy-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Botón principal */
+#copy-main-result-btn {
+    width: 44px;
+    height: 44px;
+    background-color: transparent;
+    color: var(--light-result-label);
+}
+#copy-main-result-btn:hover:not(:disabled) {
+    background-color: rgba(0,0,0,0.05);
+}
+#copy-main-result-btn .copy-icon,
+#copy-main-result-btn .check-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease-in-out;
+}
+#copy-main-result-btn.copied .copy-icon {
+    display: none;
+}
+#copy-main-result-btn.copied .check-icon {
+    display: inline-block;
+    color: var(--light-copy-btn-success-color);
+    transform: scale(1.1);
+}
+
+/* Botones en memoria de cálculo */
+.copy-button-inline {
+    width: 32px;
+    height: 32px;
+    background-color: var(--light-copy-btn-bg);
+    color: var(--light-copy-btn-color);
+}
+.copy-button-inline:hover:not(:disabled) {
+    background-color: var(--light-copy-btn-hover-bg);
+    transform: scale(1.1);
+}
+.copy-button-inline .copy-icon,
+.copy-button-inline .check-icon {
+    width: 16px;
+    height: 16px;
+}
+.copy-button-inline.copied {
+    background-color: var(--light-copy-btn-success-color);
+}
+.copy-button-inline.copied .copy-icon {
+    display: none;
+}
+.copy-button-inline.copied .check-icon {
+    display: inline-block;
+    color: var(--light-bg-card);
+}
+
+
 /* --- Estilos para el tema oscuro --- */
 html.dark body { background-color: var(--dark-bg); color: var(--dark-text-secondary); }
 html.dark .main-title { color: var(--dark-text-primary); }
@@ -250,7 +377,7 @@ html.dark .card-title { color: var(--dark-text-primary); border-color: var(--dar
 html.dark .step-circle { background-color: var(--dark-step-bg); color: var(--dark-step-text); }
 html.dark .sub-title { color: var(--dark-text-secondary); }
 html.dark .input-group label { color: var(--dark-text-label); }
-html.dark .input-field { background-color: var(--dark-bg-card); border-color: var(--dark-border); color: var(--dark-text-primary); }
+html.dark .input-field { background-color: var(--dark-bg); border-color: var(--dark-border); color: var(--dark-text-primary); }
 html.dark .input-field:focus { box-shadow: 0 0 0 3px var(--dark-accent-glow); border-color: var(--dark-accent); }
 html.dark .result-box { background: var(--dark-result-bg); border-color: var(--dark-result-border); }
 html.dark .result-value { color: var(--dark-result-value); }
@@ -259,6 +386,7 @@ html.dark .calculation-memory { background-color: var(--dark-memory-bg); border-
 html.dark .calculation-memory strong { color: var(--dark-memory-strong); }
 html.dark .calculation-memory .katex { color: var(--dark-memory-formula); }
 html.dark .calculation-memory .formula-wrapper { background-color: rgba(255,255,255,0.03); }
+html.dark .placeholder-text, html.dark .placeholder-text-table { color: var(--dark-text-secondary); }
 html.dark .equivalency-table th, html.dark .equivalency-table td { border-color: var(--dark-border); }
 html.dark .equivalency-table th { color: var(--dark-text-secondary); }
 html.dark .equivalency-table td { color: var(--dark-text-primary); }
@@ -268,3 +396,10 @@ html.dark .github-link { color: var(--dark-text-secondary); }
 html.dark .github-link:hover { color: var(--dark-text-primary); }
 html.dark .theme-toggle-button { background-color: var(--dark-bg-card); border-color: var(--dark-border); color: var(--dark-text-secondary); }
 html.dark .theme-toggle-button:hover { color: var(--dark-text-primary); border-color: var(--dark-accent); }
+html.dark #copy-main-result-btn { color: var(--dark-result-label); }
+html.dark #copy-main-result-btn:hover:not(:disabled) { background-color: rgba(255,255,255,0.05); }
+html.dark #copy-main-result-btn.copied .check-icon { color: var(--dark-copy-btn-success-color); }
+html.dark .copy-button-inline { background-color: var(--dark-copy-btn-bg); color: var(--dark-copy-btn-color); }
+html.dark .copy-button-inline:hover:not(:disabled) { background-color: var(--dark-copy-btn-hover-bg); }
+html.dark .copy-button-inline.copied { background-color: var(--dark-copy-btn-success-color); }
+html.dark .copy-button-inline.copied .check-icon { color: var(--dark-bg-card); }

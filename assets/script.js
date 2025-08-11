@@ -17,11 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const PERIODOS_ORDENADOS = ['Anual', 'Semestral', 'Cuatrimestral', 'Trimestral', 'Bimestral', 'Mensual', 'Quincenal', 'Semanal', 'Diaria'];
 
     // --- ESTADO DE LA APLICACIÓN ---
-    // Centralizamos todos los valores de los inputs en un solo objeto.
-    // La UI será un reflejo de este estado.
     const state = {
         partida: {
-            valor: 28,
+            valor: '', // Inicia vacío como se solicitó
             tipo: 'Nominal',
             periodo: 'Trimestral',
             cap: 'Vencida',
@@ -30,6 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tipo: 'Efectiva Anual',
             periodo: 'Anual',
             cap: 'Vencida',
+        },
+        resultado: {
+            valorNumerico: null // Almacena el valor numérico para copiarlo fácilmente
         }
     };
 
@@ -39,11 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
         destinoContainer: document.getElementById('destino-inputs-container'),
         resultado: {
             valor: document.getElementById('resultadoValor'),
-            label: document.getElementById('resultadoLabel')
+            label: document.getElementById('resultadoLabel'),
+            copyBtn: document.getElementById('copy-main-result-btn')
         },
         memoriaCalculo: document.getElementById('memoriaCalculo'),
-        tablaPeriodicas: document.getElementById('tablaPeriodicas'),
-        tablaNominales: document.getElementById('tablaNominales'),
+        equivalencyContainer: document.getElementById('equivalency-tables-container'),
         theme: {
             toggleBtn: document.getElementById('theme-toggle'),
             darkIcon: document.getElementById('theme-toggle-dark-icon'),
@@ -54,40 +55,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- LÓGICA DE RENDERIZADO (UI) ---
 
     /**
-     * Crea y renderiza los inputs para una sección (partida o destino)
-     * basándose en el estado actual. Esto resuelve el problema de ocultar
-     * campos innecesarios, ya que directamente no se crean en el DOM.
-     * @param {HTMLElement} container - El div contenedor para los inputs.
-     * @param {object} config - El objeto de estado para esta sección (state.partida o state.destino).
-     * @param {string} stateKey - La clave del estado ('partida' o 'destino').
+     * Crea y renderiza los inputs para una sección (partida o destino).
      */
     function renderInputs(container, config, stateKey) {
         container.innerHTML = ''; // Limpia los inputs anteriores
 
-        // 1. Input para el Valor de la Tasa (solo para 'partida')
         if (stateKey === 'partida') {
             container.appendChild(createInputGroup('valor', 'Valor de la Tasa (%)', 'number', config.valor, stateKey));
         }
 
-        // 2. Selector para el Tipo de Tasa
         const tiposTasa = (stateKey === 'partida')
             ? ['Nominal', 'Efectiva Anual']
             : ['Efectiva Anual', 'Nominal', 'Periódica'];
         container.appendChild(createInputGroup('tipo', 'Tipo de Tasa', 'select', config.tipo, stateKey, tiposTasa));
 
-        // 3. Inputs condicionales que dependen del Tipo de Tasa
         if (config.tipo !== 'Efectiva Anual') {
-            // Selector de Periodo de Capitalización
             container.appendChild(createInputGroup('periodo', 'Periodo de Capitalización', 'select', config.periodo, stateKey, PERIODOS_ORDENADOS));
-
-            // Selector de Forma de Pago (Capitalización)
             container.appendChild(createInputGroup('cap', 'Forma de Pago', 'select', config.cap, stateKey, ['Vencida', 'Anticipada']));
         }
     }
 
     /**
      * Función ayudante para crear un grupo de input (label + input/select).
-     * @returns {HTMLElement} - El div del grupo de input.
      */
     function createInputGroup(id, labelText, type, value, stateKey, options = []) {
         const group = document.createElement('div');
@@ -105,16 +94,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const option = document.createElement('option');
                 option.value = opt;
                 option.textContent = opt;
-                if (opt === value) {
-                    option.selected = true;
-                }
+                if (opt === value) option.selected = true;
                 field.appendChild(option);
             });
         } else {
             field = document.createElement('input');
             field.type = type;
             field.value = value;
-            if (type === 'number') field.step = 'any';
+            if (type === 'number') {
+                field.step = 'any';
+                field.placeholder = 'Ingresa el valor aquí'; // Placeholder actualizado
+            }
         }
 
         field.id = `${stateKey}-${id}`;
@@ -128,110 +118,150 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LÓGICA DE CÁLCULO ---
 
-    /**
-     * Función principal que orquesta todo el cálculo y la actualización de la UI.
-     */
     function realizarCalculoCompleto() {
-        const vPartida = parseFloat(state.partida.valor) / 100;
-        if (isNaN(vPartida) || vPartida < 0) {
-            actualizarUIError('El valor de la tasa de partida debe ser un número positivo.');
+        const valorPartida = parseFloat(state.partida.valor);
+        if (isNaN(valorPartida)) {
+            resetUI('Ingresa un valor en la tasa de partida para ver el proceso de conversión.');
+            return;
+        }
+        if (valorPartida < 0) {
+            actualizarUIError('El valor de la tasa debe ser un número positivo.');
             return;
         }
 
+        const vPartida = valorPartida / 100;
         let memoria = [];
-        // 1. Convertir la tasa de partida a una Tasa Efectiva Anual (EA), que es nuestro pivote.
         const ea = calcularEAPivote(vPartida, state.partida, memoria);
 
         if (isNaN(ea)) {
-            actualizarUIError('Cálculo inválido. Revise la tasa de partida (una tasa anticipada no puede ser >= 100%).');
+            actualizarUIError('Cálculo inválido. Una tasa anticipada no puede ser >= 100%.');
             return;
         }
 
-        // 2. Convertir la EA pivote a la tasa de destino solicitada.
         const { resultadoFinal, labelFinal } = calcularResultadoDestino(ea, state.destino, memoria);
-
-        // 3. Actualizar la interfaz con los resultados.
-        actualizarUIResultados(resultadoFinal, labelFinal, memoria, ea);
+        actualizarUIResultados(resultadoFinal, labelFinal, memoria.join(''), ea);
     }
 
-    /**
-     * Convierte cualquier tasa de entrada a su Tasa Efectiva Anual (EA) equivalente.
-     * @returns {number} La tasa EA calculada.
-     */
     function calcularEAPivote(valor, config, memoria) {
         if (config.tipo === 'Efectiva Anual') {
-            memoria.push(`<p><strong>1. Tasa Pivote (E.A.):</strong> La tasa de partida ya es Efectiva Anual, se usa directamente como pivote.</p>`);
+            memoria.push(generarPasoMemoria(
+                '1. Tasa Pivote (E.A.)',
+                'La tasa de partida ya es Efectiva Anual, se usa directamente como pivote.',
+                null,
+                valor
+            ));
             return valor;
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
-        let ip = valor / nper; // Tasa periódica
+        let ip = valor / nper;
 
-        memoria.push(`<p><strong>1. Calcular Tasa Periódica:</strong> Se divide la tasa nominal por el número de periodos para hallar la tasa del ciclo.</p>
-        <div class="formula-wrapper">$$ i_p = \\frac{${(valor * 100).toFixed(2)}\\%}{${nper}} = ${(ip * 100).toFixed(5)}\\% $$</div>`);
+        memoria.push(generarPasoMemoria(
+            '1. Calcular Tasa Periódica',
+            'Se divide la tasa nominal por el número de periodos para hallar la tasa del ciclo.',
+            `i_p = \\frac{${(valor * 100).toFixed(4)}\\%}{${nper}} = ${(ip * 100).toFixed(6)}\\%`,
+            ip
+        ));
 
         if (config.cap === 'Anticipada') {
             const ipAnticipada = ip;
-            ip = ip / (1 - ip); // Convertir a periódica vencida
-            memoria.push(`<p><strong>2. Convertir a Periódica Vencida:</strong> La tasa es anticipada, se convierte a su equivalente vencida para poder capitalizar.</p>
-            <div class="formula-wrapper">$$ i_{p,v} = \\frac{i_{p,a}}{1 - i_{p,a}} = \\frac{${(ipAnticipada * 100).toFixed(5)}\\%}{1 - ${(ipAnticipada * 100).toFixed(5)}\\%} = ${(ip * 100).toFixed(5)}\\% $$</div>`);
+            if (ipAnticipada >= 1) return NaN; // Validación
+            ip = ip / (1 - ip);
+            memoria.push(generarPasoMemoria(
+                '2. Convertir a Periódica Vencida',
+                'La tasa es anticipada, se convierte a su equivalente vencida para poder capitalizar.',
+                `i_{p,v} = \\frac{i_{p,a}}{1 - i_{p,a}} = \\frac{${(ipAnticipada * 100).toFixed(6)}\\%}{1 - ${(ipAnticipada * 100).toFixed(6)}\\%} = ${(ip * 100).toFixed(6)}\\%`,
+                ip
+            ));
         }
 
         const ea = Math.pow(1 + ip, nper) - 1;
-        memoria.push(`<p><strong>${config.cap === 'Anticipada' ? '3' : '2'}. Capitalizar a Efectiva Anual (Pivote):</strong> Se compone la tasa periódica vencida para hallar la rentabilidad anual real (E.A.).</p>
-        <div class="formula-wrapper">$$ E.A. = (1 + i_{p,v})^{nper} - 1 = (1 + ${(ip * 100).toFixed(5)}\\%)^{${nper}} - 1 = ${(ea * 100).toFixed(5)}\\% $$</div>`);
+        memoria.push(generarPasoMemoria(
+            `${config.cap === 'Anticipada' ? '3' : '2'}. Capitalizar a Efectiva Anual (Pivote)`,
+            'Se compone la tasa periódica vencida para hallar la rentabilidad anual real (E.A.).',
+            `E.A. = (1 + i_{p,v})^{nper} - 1 = (1 + ${(ip * 100).toFixed(6)}\\%)^{${nper}} - 1 = ${(ea * 100).toFixed(6)}\\%`,
+            ea
+        ));
 
         return ea;
     }
 
-    /**
-     * Convierte la tasa EA pivote a la tasa de destino deseada.
-     * @returns {object} Objeto con el resultado final y su etiqueta.
-     */
     function calcularResultadoDestino(ea, config, memoria) {
         const pasoInicial = memoria.length + 1;
         if (config.tipo === 'Efectiva Anual') {
-            memoria.push(`<p><strong>${pasoInicial}. Resultado Final:</strong> Se solicita la Tasa Efectiva Anual, que es nuestro valor pivote.</p>`);
+            memoria.push(generarPasoMemoria(
+                `${pasoInicial}. Resultado Final`,
+                'Se solicita la Tasa Efectiva Anual, que es nuestro valor pivote.',
+                null,
+                ea
+            ));
             return { resultadoFinal: ea, labelFinal: 'Efectiva Anual' };
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
-        let ip = Math.pow(1 + ea, 1 / nper) - 1; // Tasa periódica vencida
+        let ip = Math.pow(1 + ea, 1 / nper) - 1;
 
-        memoria.push(`<p><strong>${pasoInicial}. Descomponer E.A. a Periódica Vencida:</strong> Se descompone la E.A. para encontrar la tasa del ciclo de destino. El resultado siempre es una tasa vencida.</p>
-        <div class="formula-wrapper">$$ i_{p,v} = (1 + E.A.)^{\\frac{1}{nper}} - 1 = (1 + ${(ea * 100).toFixed(5)}\\%)^{ \\frac{1}{${nper}}} - 1 = ${(ip * 100).toFixed(5)}\\% $$</div>`);
+        memoria.push(generarPasoMemoria(
+            `${pasoInicial}. Descomponer E.A. a Periódica Vencida`,
+            'Se descompone la E.A. para encontrar la tasa del ciclo de destino. El resultado siempre es una tasa vencida.',
+            `i_{p,v} = (1 + E.A.)^{\\frac{1}{nper}} - 1 = (1 + ${(ea * 100).toFixed(6)}\\%)^{ \\frac{1}{${nper}}} - 1 = ${(ip * 100).toFixed(6)}\\%`,
+            ip
+        ));
 
         if (config.cap === 'Anticipada') {
             const ipVencida = ip;
-            ip = ip / (1 + ip); // Convertir a periódica anticipada
-            memoria.push(`<p><strong>${pasoInicial + 1}. Convertir a Periódica Anticipada:</strong> Se convierte la tasa periódica vencida a su equivalente anticipada, según lo solicitado.</p>
-            <div class="formula-wrapper">$$ i_{p,a} = \\frac{i_{p,v}}{1 + i_{p,v}} = \\frac{${(ipVencida * 100).toFixed(5)}\\%}{1 + ${(ipVencida * 100).toFixed(5)}\\%} = ${(ip * 100).toFixed(5)}\\% $$</div>`);
+            ip = ip / (1 + ip);
+            memoria.push(generarPasoMemoria(
+                `${pasoInicial + 1}. Convertir a Periódica Anticipada`,
+                'Se convierte la tasa periódica vencida a su equivalente anticipada, según lo solicitado.',
+                `i_{p,a} = \\frac{i_{p,v}}{1 + i_{p,v}} = \\frac{${(ipVencida * 100).toFixed(6)}\\%}{1 + ${(ipVencida * 100).toFixed(6)}\\%} = ${(ip * 100).toFixed(6)}\\%`,
+                ip
+            ));
         }
 
         if (config.tipo === 'Periódica') {
-            memoria.push(`<p><strong>${memoria.length}. Resultado Final:</strong> La tasa solicitada es periódica.</p>`);
-            return {
-                resultadoFinal: ip,
-                labelFinal: `Periódica ${config.periodo} ${config.cap}`
-            };
+            memoria.push(generarPasoMemoria(
+                `${memoria.length}. Resultado Final`,
+                'La tasa solicitada es la periódica calculada.',
+                null,
+                ip
+            ));
+            return { resultadoFinal: ip, labelFinal: `Periódica ${config.periodo} ${config.cap}` };
         } else { // Nominal
             const resultadoFinal = ip * nper;
-            memoria.push(`<p><strong>${memoria.length}. Componer a Tasa Nominal:</strong> Se multiplica la tasa periódica por el número de periodos para obtener la tasa nominal anual.</p>
-            <div class="formula-wrapper">$$ Nominal = i_p \\times nper = ${(ip * 100).toFixed(5)}\\% \\times ${nper} = ${(resultadoFinal * 100).toFixed(5)}\\% $$</div>`);
-            return {
-                resultadoFinal,
-                labelFinal: `Nominal ${config.periodo} ${config.cap}`
-            };
+            memoria.push(generarPasoMemoria(
+                `${memoria.length}. Componer a Tasa Nominal`,
+                'Se multiplica la tasa periódica por el número de periodos para obtener la tasa nominal anual.',
+                `Nominal = i_p \\times nper = ${(ip * 100).toFixed(6)}\\% \\times ${nper} = ${(resultadoFinal * 100).toFixed(6)}\\%`,
+                resultadoFinal
+            ));
+            return { resultadoFinal, labelFinal: `Nominal ${config.periodo} ${config.cap}` };
         }
     }
 
-    /**
-     * Rellena las tablas de equivalencia a partir de una tasa EA.
-     */
+    function generarPasoMemoria(titulo, descripcion, formula, valorNumerico) {
+        let formulaHtml = '';
+        if (formula) {
+            const valorACopiar = Number(valorNumerico).toFixed(15);
+            const botonCopiarHtml = `
+                <button class="copy-button-inline copy-button" title="Copiar valor" data-copy-value="${valorACopiar}">
+                    <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <svg class="check-icon hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </button>`;
+
+            formulaHtml = `
+                <div class="formula-wrapper">
+                    <span class="katex-container">$$ ${formula} $$</span>
+                    ${botonCopiarHtml}
+                </div>`;
+        }
+        return `<p><strong>${titulo}:</strong> ${descripcion}</p>${formulaHtml}`;
+    }
+
     function popularTablasDeEquivalencia(ea) {
-        ui.tablaPeriodicas.innerHTML = '';
-        ui.tablaNominales.innerHTML = '';
         const formatPercent = val => (val * 100).toFixed(4) + '%';
+        let periodicasHTML = '';
+        let nominalesHTML = '';
 
         PERIODOS_ORDENADOS.forEach(p_nombre => {
             const nper = PERIODOS_MAP[p_nombre].nper;
@@ -239,28 +269,62 @@ document.addEventListener('DOMContentLoaded', () => {
             const ip_a = ip_v / (1 + ip_v);
             const nom_v = ip_v * nper;
             const nom_a = ip_a * nper;
-
-            ui.tablaPeriodicas.innerHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(ip_v)}</td><td>${formatPercent(ip_a)}</td></tr>`;
-            ui.tablaNominales.innerHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(nom_v)}</td><td>${formatPercent(nom_a)}</td></tr>`;
+            periodicasHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(ip_v)}</td><td>${formatPercent(ip_a)}</td></tr>`;
+            nominalesHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(nom_v)}</td><td>${formatPercent(nom_a)}</td></tr>`;
         });
+
+        ui.equivalencyContainer.innerHTML = `
+            <div>
+                <h3 class="sub-title">Tasas Periódicas Equivalentes</h3>
+                <table class="equivalency-table">
+                    <thead><tr><th>Periodo</th><th>Tasa Vencida (ip%v)</th><th>Tasa Anticipada (ip%a)</th></tr></thead>
+                    <tbody>${periodicasHTML}</tbody>
+                </table>
+            </div>
+            <div>
+                <h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3>
+                <table class="equivalency-table">
+                    <thead><tr><th>Periodo</th><th>Nominal Vencida</th><th>Nominal Anticipada</th></tr></thead>
+                    <tbody>${nominalesHTML}</tbody>
+                </table>
+            </div>`;
     }
 
     // --- FUNCIONES DE ACTUALIZACIÓN DE UI ---
+
+    function resetUI(memoriaPlaceholder) {
+        ui.resultado.valor.textContent = '--.--%';
+        ui.resultado.label.textContent = 'Esperando cálculo...';
+        ui.memoriaCalculo.innerHTML = `<p class="placeholder-text">${memoriaPlaceholder}</p>`;
+        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>`;
+        state.resultado.valorNumerico = null;
+        ui.resultado.copyBtn.disabled = true;
+    }
 
     function actualizarUIError(mensaje) {
         ui.resultado.valor.textContent = 'Error';
         ui.resultado.label.textContent = 'Cálculo inválido';
         ui.memoriaCalculo.innerHTML = `<p class="placeholder-text">${mensaje}</p>`;
-        ui.tablaPeriodicas.innerHTML = '';
-        ui.tablaNominales.innerHTML = '';
+        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>`;
+        state.resultado.valorNumerico = null;
+        ui.resultado.copyBtn.disabled = true;
     }
 
-    function actualizarUIResultados(resultadoFinal, labelFinal, memoria, ea) {
-        ui.resultado.valor.textContent = (resultadoFinal * 100).toFixed(5) + '%';
+    function actualizarUIResultados(resultadoFinal, labelFinal, memoriaHTML, ea) {
+        const valorMostrado = (resultadoFinal * 100).toLocaleString('en-US', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4,
+            useGrouping: false
+        });
+
+        ui.resultado.valor.textContent = `${valorMostrado}%`;
         ui.resultado.label.textContent = labelFinal;
-        ui.memoriaCalculo.innerHTML = memoria.join('');
+        ui.memoriaCalculo.innerHTML = memoriaHTML;
         popularTablasDeEquivalencia(ea);
-        // Re-renderizar las fórmulas matemáticas con KaTeX
+
+        state.resultado.valorNumerico = Number(resultadoFinal).toFixed(15);
+        ui.resultado.copyBtn.disabled = false;
+
         if (window.renderMathInElement) {
             renderMathInElement(ui.memoriaCalculo);
         }
@@ -268,23 +332,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MANEJO DE EVENTOS ---
 
-    /**
-     * Manejador de eventos central para todos los inputs.
-     * Actualiza el estado y vuelve a renderizar la app.
-     */
     function handleInputChange(e) {
         const { stateKey, prop } = e.target.dataset;
-        if (stateKey && prop) {
-            const value = e.target.type === 'number' ? parseFloat(e.target.value) : e.target.value;
-            state[stateKey][prop] = value;
+        if (!stateKey || !prop) return;
 
-            // Si se cambia el tipo, resetear opciones dependientes a valores por defecto
+        const value = e.target.type === 'number' ? e.target.value : e.target.value;
+        state[stateKey][prop] = value;
+
+        // *** SOLUCIÓN AL PROBLEMA DE FOCO ***
+        // Si solo cambia el valor numérico, no reconstruimos todos los inputs.
+        // Solo actualizamos los cálculos.
+        if (prop === 'valor') {
+            realizarCalculoCompleto();
+        } else {
+            // Si cambia un selector (tipo, periodo, etc.), sí reconstruimos
+            // los inputs para que aparezcan/desaparezcan las opciones correctas.
             if (prop === 'tipo') {
                 state[stateKey].periodo = 'Anual';
                 state[stateKey].cap = 'Vencida';
             }
-
-            // Vuelve a renderizar los inputs y recalcular todo
             renderApp();
         }
     }
@@ -296,12 +362,50 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.theme.lightIcon.classList.toggle('hidden', isDark);
     }
 
+    function handleCopyClick(e) {
+        const button = e.target.closest('.copy-button');
+        if (!button) return;
+
+        const valueToCopy = button.dataset.copyValue;
+        if (valueToCopy) {
+            copyToClipboard(valueToCopy, button);
+        }
+    }
+
+    function copyToClipboard(text, buttonElement) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (buttonElement.classList.contains('copied')) return;
+
+            buttonElement.classList.add('copied');
+            setTimeout(() => {
+                buttonElement.classList.remove('copied');
+            }, 1500);
+        }).catch(err => {
+            console.error('Error al copiar: ', err);
+            // Fallback para navegadores antiguos o iframes
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (buttonElement.classList.contains('copied')) return;
+                buttonElement.classList.add('copied');
+                setTimeout(() => {
+                    buttonElement.classList.remove('copied');
+                }, 1500);
+            } catch (e) {
+                console.error("Fallback de copiado también falló", e);
+            }
+        });
+    }
+
     // --- INICIALIZACIÓN ---
 
-    /**
-     * Función que renderiza la aplicación completa. Se llama al inicio y
-     * cada vez que hay un cambio en el estado.
-     */
     function renderApp() {
         renderInputs(ui.partidaContainer, state.partida, 'partida');
         renderInputs(ui.destinoContainer, state.destino, 'destino');
@@ -309,12 +413,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function init() {
-        // Asignar manejadores de eventos a los contenedores padres
         ui.partidaContainer.addEventListener('input', handleInputChange);
         ui.destinoContainer.addEventListener('input', handleInputChange);
+        ui.resultado.copyBtn.addEventListener('click', () => {
+            if (state.resultado.valorNumerico !== null) {
+                copyToClipboard(state.resultado.valorNumerico, ui.resultado.copyBtn);
+            }
+        });
+        ui.memoriaCalculo.addEventListener('click', handleCopyClick);
         ui.theme.toggleBtn.addEventListener('click', handleThemeToggle);
 
-        // Cargar tema guardado
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
             ui.theme.darkIcon.classList.remove('hidden');
@@ -324,7 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.theme.darkIcon.classList.add('hidden');
         }
 
-        // Renderizar la aplicación por primera vez
         renderApp();
     }
 

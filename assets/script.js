@@ -1,5 +1,4 @@
-// RENZO FERNANDO MOSQUERA DAZA
-
+// RENZO FERNANDO MOSQUERA DAZA - Versión Final Corregida y Mejorada
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURACIÓN Y CONSTANTES ---
@@ -16,21 +15,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const PERIODOS_ORDENADOS = ['Anual', 'Semestral', 'Cuatrimestral', 'Trimestral', 'Bimestral', 'Mensual', 'Quincenal', 'Semanal', 'Diaria'];
 
-    // --- ESTADO DE LA APLICACIÓN ---
+    // --- ESTADO INICIAL DE LA APLICACIÓN ---
     const state = {
         partida: {
-            valor: '', // Inicia vacío como se solicitó
-            tipo: 'Nominal',
-            periodo: 'Trimestral',
-            cap: 'Vencida',
+            valor: '8',
+            tipo: 'Periódica',
+            periodo: 'Semestral',
+            modalidad: 'Vencida',
         },
         destino: {
             tipo: 'Efectiva Anual',
             periodo: 'Anual',
-            cap: 'Vencida',
+            modalidad: 'Vencida',
         },
         resultado: {
-            valorNumerico: null // Almacena el valor numérico para copiarlo fácilmente
+            valorNumerico: null
         }
     };
 
@@ -54,39 +53,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LÓGICA DE RENDERIZADO (UI) ---
 
-    /**
-     * Crea y renderiza los inputs para una sección (partida o destino).
-     */
     function renderInputs(container, config, stateKey) {
-        container.innerHTML = ''; // Limpia los inputs anteriores
+        container.innerHTML = '';
 
         if (stateKey === 'partida') {
-            container.appendChild(createInputGroup('valor', 'Valor de la Tasa (%)', 'number', config.valor, stateKey));
+            container.appendChild(createInputGroup('valor', 'Valor de la Tasa (%)', 'text', config.valor, stateKey)); // Cambiado a 'text' para mejor manejo de comas/puntos
         }
 
         const tiposTasa = (stateKey === 'partida')
-            ? ['Nominal', 'Efectiva Anual']
+            ? ['Periódica', 'Nominal', 'Efectiva Anual']
             : ['Efectiva Anual', 'Nominal', 'Periódica'];
         container.appendChild(createInputGroup('tipo', 'Tipo de Tasa', 'select', config.tipo, stateKey, tiposTasa));
 
         if (config.tipo !== 'Efectiva Anual') {
-            container.appendChild(createInputGroup('periodo', 'Periodo de Capitalización', 'select', config.periodo, stateKey, PERIODOS_ORDENADOS));
-            container.appendChild(createInputGroup('cap', 'Forma de Pago', 'select', config.cap, stateKey, ['Vencida', 'Anticipada']));
+            container.appendChild(createInputGroup('periodo', 'Periodo de la Tasa', 'select', config.periodo, stateKey, PERIODOS_ORDENADOS));
+            container.appendChild(createInputGroup('modalidad', 'Modalidad de Pago', 'select', config.modalidad, stateKey, ['Vencida', 'Anticipada']));
         }
     }
 
-    /**
-     * Función ayudante para crear un grupo de input (label + input/select).
-     */
     function createInputGroup(id, labelText, type, value, stateKey, options = []) {
         const group = document.createElement('div');
         group.className = 'input-group';
-
         const label = document.createElement('label');
         label.setAttribute('for', `${stateKey}-${id}`);
         label.textContent = labelText;
         group.appendChild(label);
-
         let field;
         if (type === 'select') {
             field = document.createElement('select');
@@ -100,142 +91,101 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             field = document.createElement('input');
             field.type = type;
-            field.value = value;
-            if (type === 'number') {
-                field.step = 'any';
-                field.placeholder = 'Ingresa el valor aquí'; // Placeholder actualizado
+            if (type === 'text') { // Para el input de valor
+                field.inputMode = 'decimal'; // Mejora la experiencia en móviles
+                field.placeholder = 'Ej: 8.5 o 8,5';
             }
+            field.value = value;
         }
-
         field.id = `${stateKey}-${id}`;
         field.className = 'input-field';
         field.dataset.stateKey = stateKey;
         field.dataset.prop = id;
         group.appendChild(field);
-
         return group;
     }
 
-    // --- LÓGICA DE CÁLCULO ---
+    // --- LÓGICA DE CÁLCULO (NÚCLEO CORREGIDO) ---
 
     function realizarCalculoCompleto() {
-        const valorPartida = parseFloat(state.partida.valor);
-        if (isNaN(valorPartida)) {
-            resetUI('Ingresa un valor en la tasa de partida para ver el proceso de conversión.');
+        // Normaliza el valor reemplazando la coma por el punto para un parsing universal
+        const valorNormalizado = String(state.partida.valor).replace(',', '.');
+        const valorPartida = parseFloat(valorNormalizado);
+
+        if (isNaN(valorPartida) || valorPartida <= 0) {
+            resetUI('Ingresa un valor de tasa positivo para empezar.');
             return;
         }
-        if (valorPartida < 0) {
-            actualizarUIError('El valor de la tasa debe ser un número positivo.');
+        const memoria = [];
+        const tasaPartidaDecimal = valorPartida / 100;
+        const tea = convertirAPivoteTEA(tasaPartidaDecimal, state.partida, memoria);
+        if (isNaN(tea) || !isFinite(tea)) {
+            actualizarUIError('Cálculo inválido. Una tasa periódica anticipada no puede ser igual o mayor al 100%.');
             return;
         }
-
-        const vPartida = valorPartida / 100;
-        let memoria = [];
-        const ea = calcularEAPivote(vPartida, state.partida, memoria);
-
-        if (isNaN(ea)) {
-            actualizarUIError('Cálculo inválido. Una tasa anticipada no puede ser >= 100%.');
-            return;
-        }
-
-        const { resultadoFinal, labelFinal } = calcularResultadoDestino(ea, state.destino, memoria);
-        actualizarUIResultados(resultadoFinal, labelFinal, memoria.join(''), ea);
+        const { resultadoFinal, labelFinal } = convertirDesdePivoteTEA(tea, state.destino, memoria);
+        actualizarUIResultados(resultadoFinal, labelFinal, memoria.join(''), tea);
     }
 
-    function calcularEAPivote(valor, config, memoria) {
+    function convertirAPivoteTEA(valor, config, memoria) {
         if (config.tipo === 'Efectiva Anual') {
-            memoria.push(generarPasoMemoria(
-                '1. Tasa Pivote (E.A.)',
-                'La tasa de partida ya es Efectiva Anual, se usa directamente como pivote.',
-                null,
-                valor
-            ));
+            memoria.push(generarPasoMemoria('1. Tasa Pivote (E.A.)', 'La tasa de partida ya es Efectiva Anual.', `E.A. = ${(valor * 100).toFixed(8)}\\%`, valor));
             return valor;
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
-        let ip = valor / nper;
+        let ip; // Tasa periódica vencida
 
-        memoria.push(generarPasoMemoria(
-            '1. Calcular Tasa Periódica',
-            'Se divide la tasa nominal por el número de periodos para hallar la tasa del ciclo.',
-            `i_p = \\frac{${(valor * 100).toFixed(4)}\\%}{${nper}} = ${(ip * 100).toFixed(6)}\\%`,
-            ip
-        ));
+        if (config.tipo === 'Periódica') {
+            ip = valor;
+            memoria.push(generarPasoMemoria('1. Tasa Periódica de Partida', 'La tasa de partida es una tasa periódica y se usa directamente.', `i_p = ${(ip * 100).toFixed(10)}\\%`, ip));
+        } else { // Nominal
+            ip = valor / nper;
+            memoria.push(generarPasoMemoria('1. Calcular Tasa Periódica', 'Se divide la tasa nominal por el número de periodos.', `i_p = \\frac{J}{m} = \\frac{${(valor * 100).toFixed(6)}\\%}{${nper}} = ${(ip * 100).toFixed(10)}\\%`, ip));
+        }
 
-        if (config.cap === 'Anticipada') {
+        if (config.modalidad === 'Anticipada') {
             const ipAnticipada = ip;
-            if (ipAnticipada >= 1) return NaN; // Validación
-            ip = ip / (1 - ip);
-            memoria.push(generarPasoMemoria(
-                '2. Convertir a Periódica Vencida',
-                'La tasa es anticipada, se convierte a su equivalente vencida para poder capitalizar.',
-                `i_{p,v} = \\frac{i_{p,a}}{1 - i_{p,a}} = \\frac{${(ipAnticipada * 100).toFixed(6)}\\%}{1 - ${(ipAnticipada * 100).toFixed(6)}\\%} = ${(ip * 100).toFixed(6)}\\%`,
-                ip
-            ));
+            if (ipAnticipada >= 1) return NaN;
+            ip = ipAnticipada / (1 - ipAnticipada);
+            memoria.push(generarPasoMemoria('2. Convertir a Periódica Vencida', 'Se convierte la tasa periódica anticipada a su equivalente vencida.', `i_{p,v} = \\frac{i_{p,a}}{1 - i_{p,a}} = \\frac{${(ipAnticipada * 100).toFixed(10)}\\%}{1 - ${ipAnticipada.toFixed(10)}} = ${(ip * 100).toFixed(10)}\\%`, ip));
         }
 
         const ea = Math.pow(1 + ip, nper) - 1;
-        memoria.push(generarPasoMemoria(
-            `${config.cap === 'Anticipada' ? '3' : '2'}. Capitalizar a Efectiva Anual (Pivote)`,
-            'Se compone la tasa periódica vencida para hallar la rentabilidad anual real (E.A.).',
-            `E.A. = (1 + i_{p,v})^{nper} - 1 = (1 + ${(ip * 100).toFixed(6)}\\%)^{${nper}} - 1 = ${(ea * 100).toFixed(6)}\\%`,
-            ea
-        ));
-
+        memoria.push(generarPasoMemoria(`${config.modalidad === 'Anticipada' ? '3' : '2'}. Capitalizar a Efectiva Anual`, 'Se compone la tasa periódica vencida para hallar la E.A. pivote.', `E.A. = (1 + i_{p,v})^{m} - 1 = (1 + ${ip.toFixed(10)})^{${nper}} - 1 = ${(ea * 100).toFixed(10)}\\%`, ea));
         return ea;
     }
 
-    function calcularResultadoDestino(ea, config, memoria) {
+    function convertirDesdePivoteTEA(tea, config, memoria) {
         const pasoInicial = memoria.length + 1;
         if (config.tipo === 'Efectiva Anual') {
-            memoria.push(generarPasoMemoria(
-                `${pasoInicial}. Resultado Final`,
-                'Se solicita la Tasa Efectiva Anual, que es nuestro valor pivote.',
-                null,
-                ea
-            ));
-            return { resultadoFinal: ea, labelFinal: 'Efectiva Anual' };
+            return { resultadoFinal: tea, labelFinal: 'Efectiva Anual' };
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
-        let ip = Math.pow(1 + ea, 1 / nper) - 1;
+        let ip = Math.pow(1 + tea, 1 / nper) - 1;
 
-        memoria.push(generarPasoMemoria(
-            `${pasoInicial}. Descomponer E.A. a Periódica Vencida`,
-            'Se descompone la E.A. para encontrar la tasa del ciclo de destino. El resultado siempre es una tasa vencida.',
-            `i_{p,v} = (1 + E.A.)^{\\frac{1}{nper}} - 1 = (1 + ${(ea * 100).toFixed(6)}\\%)^{ \\frac{1}{${nper}}} - 1 = ${(ip * 100).toFixed(6)}\\%`,
-            ip
-        ));
-
-        if (config.cap === 'Anticipada') {
-            const ipVencida = ip;
-            ip = ip / (1 + ip);
-            memoria.push(generarPasoMemoria(
-                `${pasoInicial + 1}. Convertir a Periódica Anticipada`,
-                'Se convierte la tasa periódica vencida a su equivalente anticipada, según lo solicitado.',
-                `i_{p,a} = \\frac{i_{p,v}}{1 + i_{p,v}} = \\frac{${(ipVencida * 100).toFixed(6)}\\%}{1 + ${(ipVencida * 100).toFixed(6)}\\%} = ${(ip * 100).toFixed(6)}\\%`,
-                ip
-            ));
-        }
+        memoria.push(generarPasoMemoria(`${pasoInicial}. Descomponer E.A. a Periódica Vencida`, 'Se halla la tasa periódica vencida equivalente para el periodo de destino.', `i_{p,v} = (1 + E.A.)^{\\frac{1}{m}} - 1 = (1 + ${tea.toFixed(10)})^{ \\frac{1}{${nper}}} - 1 = ${(ip * 100).toFixed(10)}\\%`, ip));
 
         if (config.tipo === 'Periódica') {
-            memoria.push(generarPasoMemoria(
-                `${memoria.length}. Resultado Final`,
-                'La tasa solicitada es la periódica calculada.',
-                null,
-                ip
-            ));
-            return { resultadoFinal: ip, labelFinal: `Periódica ${config.periodo} ${config.cap}` };
-        } else { // Nominal
-            const resultadoFinal = ip * nper;
-            memoria.push(generarPasoMemoria(
-                `${memoria.length}. Componer a Tasa Nominal`,
-                'Se multiplica la tasa periódica por el número de periodos para obtener la tasa nominal anual.',
-                `Nominal = i_p \\times nper = ${(ip * 100).toFixed(6)}\\% \\times ${nper} = ${(resultadoFinal * 100).toFixed(6)}\\%`,
-                resultadoFinal
-            ));
-            return { resultadoFinal, labelFinal: `Nominal ${config.periodo} ${config.cap}` };
+            if (config.modalidad === 'Anticipada') {
+                const ipVencida = ip;
+                ip = ipVencida / (1 + ipVencida);
+                memoria.push(generarPasoMemoria(`${pasoInicial + 1}. Convertir a Periódica Anticipada`, 'Se convierte la tasa periódica vencida a su equivalente anticipada.', `i_{p,a} = \\frac{i_{p,v}}{1 + i_{p,v}} = \\frac{${(ipVencida * 100).toFixed(10)}\\%}{1 + ${ipVencida.toFixed(10)}} = ${(ip * 100).toFixed(10)}\\%`, ip));
+            }
+            return { resultadoFinal: ip, labelFinal: `Periódica ${config.periodo} ${config.modalidad}` };
+        }
+
+        if (config.tipo === 'Nominal') {
+            let ipFinal = ip;
+            if (config.modalidad === 'Anticipada') {
+                const ipVencida = ip;
+                ipFinal = ipVencida / (1 + ipVencida);
+                memoria.push(generarPasoMemoria(`${pasoInicial + 1}. Convertir a Periódica Anticipada`, 'Para hallar la nominal anticipada, primero se calcula la periódica anticipada.', `i_{p,a} = \\frac{i_{p,v}}{1 + i_{p,v}} = \\frac{${(ipVencida * 100).toFixed(10)}\\%}{1 + ${ipVencida.toFixed(10)}} = ${(ipFinal * 100).toFixed(10)}\\%`, ipFinal));
+            }
+            const resultadoFinal = ipFinal * nper;
+            memoria.push(generarPasoMemoria(`${memoria.length + 1}. Componer a Tasa Nominal`, 'Se multiplica la tasa periódica final por el número de periodos.', `J = i_p \\times m = ${(ipFinal * 100).toFixed(10)}\\% \\times ${nper} = ${(resultadoFinal * 100).toFixed(10)}\\%`, resultadoFinal));
+            return { resultadoFinal, labelFinal: `Nominal ${config.periodo} ${config.modalidad}` };
         }
     }
 
@@ -243,26 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
         let formulaHtml = '';
         if (formula) {
             const valorACopiar = Number(valorNumerico).toFixed(15);
-            const botonCopiarHtml = `
-                <button class="copy-button-inline copy-button" title="Copiar valor" data-copy-value="${valorACopiar}">
-                    <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    <svg class="check-icon hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </button>`;
-
-            formulaHtml = `
-                <div class="formula-wrapper">
-                    <span class="katex-container">$$ ${formula} $$</span>
-                    ${botonCopiarHtml}
-                </div>`;
+            const botonCopiarHtml = `<button class="copy-button-inline copy-button" title="Copiar valor numérico" data-copy-value="${valorACopiar}"><svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><svg class="check-icon hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>`;
+            formulaHtml = `<div class="formula-wrapper"><span class="katex-container">$$ ${formula} $$</span>${botonCopiarHtml}</div>`;
         }
-        return `<p><strong>${titulo}:</strong> ${descripcion}</p>${formulaHtml}`;
+        return `<div class="memory-step"><p><strong>${titulo}:</strong> ${descripcion}</p>${formulaHtml}</div>`;
     }
 
     function popularTablasDeEquivalencia(ea) {
-        const formatPercent = val => (val * 100).toFixed(4) + '%';
-        let periodicasHTML = '';
-        let nominalesHTML = '';
-
+        const formatPercent = val => (val * 100).toFixed(8) + '%'; // Aumentada la precisión aquí
+        let periodicasHTML = '', nominalesHTML = '';
         PERIODOS_ORDENADOS.forEach(p_nombre => {
             const nper = PERIODOS_MAP[p_nombre].nper;
             const ip_v = Math.pow(1 + ea, 1 / nper) - 1;
@@ -272,31 +211,15 @@ document.addEventListener('DOMContentLoaded', () => {
             periodicasHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(ip_v)}</td><td>${formatPercent(ip_a)}</td></tr>`;
             nominalesHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(nom_v)}</td><td>${formatPercent(nom_a)}</td></tr>`;
         });
-
-        ui.equivalencyContainer.innerHTML = `
-            <div>
-                <h3 class="sub-title">Tasas Periódicas Equivalentes</h3>
-                <table class="equivalency-table">
-                    <thead><tr><th>Periodo</th><th>Tasa Vencida (ip%v)</th><th>Tasa Anticipada (ip%a)</th></tr></thead>
-                    <tbody>${periodicasHTML}</tbody>
-                </table>
-            </div>
-            <div>
-                <h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3>
-                <table class="equivalency-table">
-                    <thead><tr><th>Periodo</th><th>Nominal Vencida</th><th>Nominal Anticipada</th></tr></thead>
-                    <tbody>${nominalesHTML}</tbody>
-                </table>
-            </div>`;
+        ui.equivalencyContainer.innerHTML = `<div><h3 class="sub-title">Tasas Periódicas Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Tasa Vencida (iₚ)</th><th>Tasa Anticipada (iₐ)</th></tr></thead><tbody>${periodicasHTML}</tbody></table></div><div><h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Nominal Vencida (J)</th><th>Nominal Anticipada (J)</th></tr></thead><tbody>${nominalesHTML}</tbody></table></div>`;
     }
 
     // --- FUNCIONES DE ACTUALIZACIÓN DE UI ---
-
     function resetUI(memoriaPlaceholder) {
         ui.resultado.valor.textContent = '--.--%';
         ui.resultado.label.textContent = 'Esperando cálculo...';
         ui.memoriaCalculo.innerHTML = `<p class="placeholder-text">${memoriaPlaceholder}</p>`;
-        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>`;
+        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí.</p>`;
         state.resultado.valorNumerico = null;
         ui.resultado.copyBtn.disabled = true;
     }
@@ -304,56 +227,50 @@ document.addEventListener('DOMContentLoaded', () => {
     function actualizarUIError(mensaje) {
         ui.resultado.valor.textContent = 'Error';
         ui.resultado.label.textContent = 'Cálculo inválido';
-        ui.memoriaCalculo.innerHTML = `<p class="placeholder-text">${mensaje}</p>`;
-        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>`;
+        ui.memoriaCalculo.innerHTML = `<p class="placeholder-text error-text">${mensaje}</p>`;
+        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Cálculo inválido.</p>`;
         state.resultado.valorNumerico = null;
         ui.resultado.copyBtn.disabled = true;
     }
 
     function actualizarUIResultados(resultadoFinal, labelFinal, memoriaHTML, ea) {
-        const valorMostrado = (resultadoFinal * 100).toLocaleString('en-US', {
-            minimumFractionDigits: 4,
-            maximumFractionDigits: 4,
-            useGrouping: false
-        });
-
+        // Aumentada la precisión del resultado principal a 10 decimales
+        const valorMostrado = (resultadoFinal * 100).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 10 });
         ui.resultado.valor.textContent = `${valorMostrado}%`;
         ui.resultado.label.textContent = labelFinal;
         ui.memoriaCalculo.innerHTML = memoriaHTML;
         popularTablasDeEquivalencia(ea);
-
-        state.resultado.valorNumerico = Number(resultadoFinal).toFixed(15);
+        state.resultado.valorNumerico = (resultadoFinal).toFixed(15);
         ui.resultado.copyBtn.disabled = false;
-
         if (window.renderMathInElement) {
-            renderMathInElement(ui.memoriaCalculo);
+            renderMathInElement(ui.memoriaCalculo, { delimiters: [{ left: "$$", right: "$$", display: true }] });
         }
     }
 
     // --- MANEJO DE EVENTOS ---
-
     function handleInputChange(e) {
         const { stateKey, prop } = e.target.dataset;
         if (!stateKey || !prop) return;
 
-        const value = e.target.type === 'number' ? e.target.value : e.target.value;
-        state[stateKey][prop] = value;
+        state[stateKey][prop] = e.target.value;
 
-        // *** SOLUCIÓN AL PROBLEMA DE FOCO ***
-        // Si solo cambia el valor numérico, no reconstruimos todos los inputs.
-        // Solo actualizamos los cálculos.
-        if (prop === 'valor') {
-            realizarCalculoCompleto();
-        } else {
-            // Si cambia un selector (tipo, periodo, etc.), sí reconstruimos
-            // los inputs para que aparezcan/desaparezcan las opciones correctas.
+        if (e.target.tagName === 'SELECT') {
             if (prop === 'tipo') {
-                state[stateKey].periodo = 'Anual';
-                state[stateKey].cap = 'Vencida';
+                if (state[stateKey].tipo === 'Efectiva Anual') {
+                    state[stateKey].periodo = 'Anual';
+                    state[stateKey].modalidad = 'Vencida';
+                } else {
+                    if (state[stateKey].periodo === 'Anual') {
+                        state[stateKey].periodo = 'Semestral';
+                    }
+                }
             }
             renderApp();
+        } else {
+            realizarCalculoCompleto();
         }
     }
+
 
     function handleThemeToggle() {
         const isDark = document.documentElement.classList.toggle('dark');
@@ -362,65 +279,51 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.theme.lightIcon.classList.toggle('hidden', isDark);
     }
 
-    function handleCopyClick(e) {
-        const button = e.target.closest('.copy-button');
-        if (!button) return;
-
-        const valueToCopy = button.dataset.copyValue;
-        if (valueToCopy) {
-            copyToClipboard(valueToCopy, button);
-        }
-    }
-
     function copyToClipboard(text, buttonElement) {
-        navigator.clipboard.writeText(text).then(() => {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
             if (buttonElement.classList.contains('copied')) return;
-
             buttonElement.classList.add('copied');
-            setTimeout(() => {
-                buttonElement.classList.remove('copied');
-            }, 1500);
-        }).catch(err => {
-            console.error('Error al copiar: ', err);
-            // Fallback para navegadores antiguos o iframes
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                textArea.style.position = "fixed";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (buttonElement.classList.contains('copied')) return;
-                buttonElement.classList.add('copied');
-                setTimeout(() => {
-                    buttonElement.classList.remove('copied');
-                }, 1500);
-            } catch (e) {
-                console.error("Fallback de copiado también falló", e);
-            }
-        });
+            setTimeout(() => buttonElement.classList.remove('copied'), 1500);
+        } catch (err) { console.error('Error al copiar: ', err); }
     }
 
     // --- INICIALIZACIÓN ---
-
     function renderApp() {
+        const focusedElementId = document.activeElement.id;
+        const focusedElementSelectionStart = document.activeElement.selectionStart;
+
         renderInputs(ui.partidaContainer, state.partida, 'partida');
         renderInputs(ui.destinoContainer, state.destino, 'destino');
         realizarCalculoCompleto();
+
+        if (focusedElementId && document.getElementById(focusedElementId)) {
+            const elementToFocus = document.getElementById(focusedElementId);
+            elementToFocus.focus();
+            if (elementToFocus.selectionStart !== undefined) {
+                elementToFocus.selectionStart = focusedElementSelectionStart;
+                elementToFocus.selectionEnd = focusedElementSelectionStart;
+            }
+        }
     }
 
     function init() {
-        ui.partidaContainer.addEventListener('input', handleInputChange);
-        ui.destinoContainer.addEventListener('input', handleInputChange);
+        document.body.addEventListener('input', handleInputChange);
+
         ui.resultado.copyBtn.addEventListener('click', () => {
-            if (state.resultado.valorNumerico !== null) {
-                copyToClipboard(state.resultado.valorNumerico, ui.resultado.copyBtn);
-            }
+            if (state.resultado.valorNumerico !== null) copyToClipboard(state.resultado.valorNumerico, ui.resultado.copyBtn);
         });
-        ui.memoriaCalculo.addEventListener('click', handleCopyClick);
+        ui.memoriaCalculo.addEventListener('click', e => {
+            const button = e.target.closest('.copy-button');
+            if (button && button.dataset.copyValue) copyToClipboard(button.dataset.copyValue, button);
+        });
         ui.theme.toggleBtn.addEventListener('click', handleThemeToggle);
 
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -431,9 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.theme.lightIcon.classList.remove('hidden');
             ui.theme.darkIcon.classList.add('hidden');
         }
-
         renderApp();
     }
-
     init();
 });

@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ESTADO INICIAL DE LA APLICACIÓN ---
     const state = {
         partida: {
-            valor: '8',
-            tipo: 'Periódica',
-            periodo: 'Semestral',
+            valor: '', // Inicia vacío para que el usuario ingrese el valor.
+            tipo: 'Nominal',
+            periodo: 'Trimestral',
             modalidad: 'Vencida',
         },
         destino: {

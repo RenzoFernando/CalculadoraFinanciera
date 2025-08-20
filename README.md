@@ -36,10 +36,12 @@ El proyecto está organizado de manera clara y mantenible:
 
 ```
 CalculadoraFinanciera/
+├── assets
+│   ├── script.js
+│   └── style.css
+├── excel-content.html
 ├── index.html
-└── assets/
-├── style.css
-└── script.js
+└── manifest.xml
 ```
 
 ---

@@ -1,4 +1,4 @@
-// RENZO FERNANDO MOSQUERA DAZA - Versión Final Corregida y Mejorada
+// RENZO FERNANDO MOSQUERA DAZA
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURACIÓN Y CONSTANTES ---
@@ -16,17 +16,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const PERIODOS_ORDENADOS = ['Anual', 'Semestral', 'Cuatrimestral', 'Trimestral', 'Bimestral', 'Mensual', 'Quincenal', 'Semanal', 'Diaria'];
 
     // --- ESTADO INICIAL DE LA APLICACIÓN ---
+    // Se inicia todo en blanco para que el usuario elija.
     const state = {
         partida: {
-            valor: '', // Inicia vacío para que el usuario ingrese el valor.
-            tipo: 'Nominal',
-            periodo: 'Trimestral',
-            modalidad: 'Vencida',
+            valor: '',
+            tipo: '',
+            periodo: '',
+            modalidad: '', // Inicia vacío para el placeholder
         },
         destino: {
-            tipo: 'Efectiva Anual',
-            periodo: 'Anual',
-            modalidad: 'Vencida',
+            tipo: '',
+            periodo: '',
+            modalidad: '', // Inicia vacío para el placeholder
         },
         resultado: {
             valorNumerico: null
@@ -57,21 +58,19 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
 
         if (stateKey === 'partida') {
-            container.appendChild(createInputGroup('valor', 'Valor de la Tasa (%)', 'text', config.valor, stateKey)); // Cambiado a 'text' para mejor manejo de comas/puntos
+            container.appendChild(createInputGroup('valor', 'Valor de la Tasa (%)', 'text', config.valor, stateKey));
         }
 
-        const tiposTasa = (stateKey === 'partida')
-            ? ['Periódica', 'Nominal', 'Efectiva Anual']
-            : ['Efectiva Anual', 'Nominal', 'Periódica'];
-        container.appendChild(createInputGroup('tipo', 'Tipo de Tasa', 'select', config.tipo, stateKey, tiposTasa));
+        const tiposTasa = ['Periódica', 'Nominal', 'Efectiva Anual'];
+        container.appendChild(createInputGroup('tipo', 'Tipo de Tasa', 'select', config.tipo, stateKey, tiposTasa, 'Seleccione un tipo'));
 
-        if (config.tipo !== 'Efectiva Anual') {
-            container.appendChild(createInputGroup('periodo', 'Periodo de la Tasa', 'select', config.periodo, stateKey, PERIODOS_ORDENADOS));
-            container.appendChild(createInputGroup('modalidad', 'Modalidad de Pago', 'select', config.modalidad, stateKey, ['Vencida', 'Anticipada']));
+        if (config.tipo && config.tipo !== 'Efectiva Anual') {
+            container.appendChild(createInputGroup('periodo', 'Periodo de la Tasa', 'select', config.periodo, stateKey, PERIODOS_ORDENADOS, 'Seleccione un periodo'));
+            container.appendChild(createInputGroup('modalidad', 'Modalidad de Pago', 'select', config.modalidad, stateKey, ['Vencida', 'Anticipada'], 'Seleccione una modalidad'));
         }
     }
 
-    function createInputGroup(id, labelText, type, value, stateKey, options = []) {
+    function createInputGroup(id, labelText, type, value, stateKey, options = [], placeholderText = '') {
         const group = document.createElement('div');
         group.className = 'input-group';
         const label = document.createElement('label');
@@ -79,8 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
         label.textContent = labelText;
         group.appendChild(label);
         let field;
+
         if (type === 'select') {
             field = document.createElement('select');
+            if (placeholderText) {
+                const placeholderOption = document.createElement('option');
+                placeholderOption.value = '';
+                placeholderOption.textContent = placeholderText;
+                placeholderOption.disabled = true;
+                placeholderOption.selected = value === '';
+                field.appendChild(placeholderOption);
+            }
             options.forEach(opt => {
                 const option = document.createElement('option');
                 option.value = opt;
@@ -88,15 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (opt === value) option.selected = true;
                 field.appendChild(option);
             });
-        } else {
+        } else { // input text
             field = document.createElement('input');
             field.type = type;
-            if (type === 'text') { // Para el input de valor
-                field.inputMode = 'decimal'; // Mejora la experiencia en móviles
-                field.placeholder = 'Ej: 8.5 o 8,5';
-            }
+            field.inputMode = 'decimal';
+            field.placeholder = 'Ingrese el valor aquí'; // Placeholder modificado
             field.value = value;
         }
+
         field.id = `${stateKey}-${id}`;
         field.className = 'input-field';
         field.dataset.stateKey = stateKey;
@@ -105,10 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return group;
     }
 
-    // --- LÓGICA DE CÁLCULO (NÚCLEO CORREGIDO) ---
+    // --- LÓGICA DE CÁLCULO (NÚCLEO) ---
 
     function realizarCalculoCompleto() {
-        // Normaliza el valor reemplazando la coma por el punto para un parsing universal
+        // Valida que todos los campos necesarios estén completos antes de calcular
+        if (!state.partida.valor || !state.partida.tipo || !state.destino.tipo ||
+            (state.partida.tipo !== 'Efectiva Anual' && (!state.partida.periodo || !state.partida.modalidad)) ||
+            (state.destino.tipo !== 'Efectiva Anual' && (!state.destino.periodo || !state.destino.modalidad))) {
+            resetUI('Completa todos los campos para iniciar el cálculo.');
+            return;
+        }
+
         const valorNormalizado = String(state.partida.valor).replace(',', '.');
         const valorPartida = parseFloat(valorNormalizado);
 
@@ -116,13 +130,16 @@ document.addEventListener('DOMContentLoaded', () => {
             resetUI('Ingresa un valor de tasa positivo para empezar.');
             return;
         }
+
         const memoria = [];
         const tasaPartidaDecimal = valorPartida / 100;
         const tea = convertirAPivoteTEA(tasaPartidaDecimal, state.partida, memoria);
+
         if (isNaN(tea) || !isFinite(tea)) {
             actualizarUIError('Cálculo inválido. Una tasa periódica anticipada no puede ser igual o mayor al 100%.');
             return;
         }
+
         const { resultadoFinal, labelFinal } = convertirDesdePivoteTEA(tea, state.destino, memoria);
         actualizarUIResultados(resultadoFinal, labelFinal, memoria.join(''), tea);
     }
@@ -134,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
-        let ip; // Tasa periódica vencida
+        let ip;
 
         if (config.tipo === 'Periódica') {
             ip = valor;
@@ -200,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function popularTablasDeEquivalencia(ea) {
-        const formatPercent = val => (val * 100).toFixed(8) + '%'; // Aumentada la precisión aquí
+        const formatPercent = val => (val * 100).toFixed(8) + '%';
         let periodicasHTML = '', nominalesHTML = '';
         PERIODOS_ORDENADOS.forEach(p_nombre => {
             const nper = PERIODOS_MAP[p_nombre].nper;
@@ -211,15 +228,15 @@ document.addEventListener('DOMContentLoaded', () => {
             periodicasHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(ip_v)}</td><td>${formatPercent(ip_a)}</td></tr>`;
             nominalesHTML += `<tr><td>${p_nombre}</td><td>${formatPercent(nom_v)}</td><td>${formatPercent(nom_a)}</td></tr>`;
         });
-        ui.equivalencyContainer.innerHTML = `<div><h3 class="sub-title">Tasas Periódicas Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Tasa Vencida (iₚ)</th><th>Tasa Anticipada (iₐ)</th></tr></thead><tbody>${periodicasHTML}</tbody></table></div><div><h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Nominal Vencida (J)</th><th>Nominal Anticipada (J)</th></tr></thead><tbody>${nominalesHTML}</tbody></table></div>`;
+        ui.equivalencyContainer.innerHTML = `<div><h3 class="sub-title">Tasas Periódicas Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Tasa Vencida (i&#x209A;)</th><th>Tasa Anticipada (i&#x2090;)</th></tr></thead><tbody>${periodicasHTML}</tbody></table></div><div><h3 class="sub-title">Tasas Nominales Anuales Equivalentes</h3><table class="equivalency-table"><thead><tr><th>Periodo</th><th>Nominal Vencida (J)</th><th>Nominal Anticipada (J)</th></tr></thead><tbody>${nominalesHTML}</tbody></table></div>`;
     }
 
     // --- FUNCIONES DE ACTUALIZACIÓN DE UI ---
-    function resetUI(memoriaPlaceholder) {
+    function resetUI(mensaje) {
         ui.resultado.valor.textContent = '--.--%';
         ui.resultado.label.textContent = 'Esperando cálculo...';
-        ui.memoriaCalculo.innerHTML = `<p class="placeholder-text">${memoriaPlaceholder}</p>`;
-        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí.</p>`;
+        ui.memoriaCalculo.innerHTML = `<div class="placeholder-container"><svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20V16"></path></svg><p class="placeholder-text">${mensaje}</p></div>`;
+        ui.equivalencyContainer.innerHTML = `<div class="placeholder-container"><svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16H3V8h5zM13 17.5V14h-3v-4h3V6.5l5 5.5-5 5.5zM21 8h-5v8h5V8z"></path></svg><p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí.</p></div>`;
         state.resultado.valorNumerico = null;
         ui.resultado.copyBtn.disabled = true;
     }
@@ -227,14 +244,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function actualizarUIError(mensaje) {
         ui.resultado.valor.textContent = 'Error';
         ui.resultado.label.textContent = 'Cálculo inválido';
-        ui.memoriaCalculo.innerHTML = `<p class="placeholder-text error-text">${mensaje}</p>`;
-        ui.equivalencyContainer.innerHTML = `<p class="placeholder-text-table">Cálculo inválido.</p>`;
+        ui.memoriaCalculo.innerHTML = `<div class="placeholder-container"><p class="placeholder-text error-text">${mensaje}</p></div>`;
+        ui.equivalencyContainer.innerHTML = `<div class="placeholder-container"><p class="placeholder-text-table">Cálculo inválido.</p></div>`;
         state.resultado.valorNumerico = null;
         ui.resultado.copyBtn.disabled = true;
     }
 
     function actualizarUIResultados(resultadoFinal, labelFinal, memoriaHTML, ea) {
-        // Aumentada la precisión del resultado principal a 10 decimales
         const valorMostrado = (resultadoFinal * 100).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 10 });
         ui.resultado.valor.textContent = `${valorMostrado}%`;
         ui.resultado.label.textContent = labelFinal;
@@ -242,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         popularTablasDeEquivalencia(ea);
         state.resultado.valorNumerico = (resultadoFinal).toFixed(15);
         ui.resultado.copyBtn.disabled = false;
-        if (window.renderMathInElement) {
+        if (window.katex) {
             renderMathInElement(ui.memoriaCalculo, { delimiters: [{ left: "$$", right: "$$", display: true }] });
         }
     }
@@ -252,23 +268,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const { stateKey, prop } = e.target.dataset;
         if (!stateKey || !prop) return;
 
-        state[stateKey][prop] = e.target.value;
+        const oldValue = state[stateKey][prop];
+        const newValue = e.target.value;
 
-        if (e.target.tagName === 'SELECT') {
-            if (prop === 'tipo') {
-                if (state[stateKey].tipo === 'Efectiva Anual') {
-                    state[stateKey].periodo = 'Anual';
-                    state[stateKey].modalidad = 'Vencida';
-                } else {
-                    if (state[stateKey].periodo === 'Anual') {
-                        state[stateKey].periodo = 'Semestral';
-                    }
+        if (oldValue === newValue) return;
+
+        state[stateKey][prop] = newValue;
+
+        if (prop === 'tipo') {
+            if (newValue === 'Efectiva Anual') {
+                state[stateKey].periodo = 'Anual';
+                state[stateKey].modalidad = 'Vencida';
+            } else {
+                if (oldValue === 'Efectiva Anual' || !oldValue) {
+                    state[stateKey].periodo = '';
+                    state[stateKey].modalidad = '';
                 }
             }
-            renderApp();
-        } else {
-            realizarCalculoCompleto();
         }
+
+        renderApp();
     }
 
 
@@ -289,41 +308,50 @@ document.addEventListener('DOMContentLoaded', () => {
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
+
             if (buttonElement.classList.contains('copied')) return;
             buttonElement.classList.add('copied');
             setTimeout(() => buttonElement.classList.remove('copied'), 1500);
-        } catch (err) { console.error('Error al copiar: ', err); }
+        } catch (err) {
+            console.error('Error al copiar: ', err);
+        }
     }
 
     // --- INICIALIZACIÓN ---
     function renderApp() {
         const focusedElementId = document.activeElement.id;
-        const focusedElementSelectionStart = document.activeElement.selectionStart;
+        const selectionStart = document.activeElement.selectionStart;
+        const selectionEnd = document.activeElement.selectionEnd;
 
         renderInputs(ui.partidaContainer, state.partida, 'partida');
         renderInputs(ui.destinoContainer, state.destino, 'destino');
         realizarCalculoCompleto();
 
-        if (focusedElementId && document.getElementById(focusedElementId)) {
+        if (focusedElementId) {
             const elementToFocus = document.getElementById(focusedElementId);
-            elementToFocus.focus();
-            if (elementToFocus.selectionStart !== undefined) {
-                elementToFocus.selectionStart = focusedElementSelectionStart;
-                elementToFocus.selectionEnd = focusedElementSelectionStart;
+            if (elementToFocus) {
+                elementToFocus.focus();
+                if (elementToFocus.selectionStart !== undefined) {
+                    elementToFocus.selectionStart = selectionStart;
+                    elementToFocus.selectionEnd = selectionEnd;
+                }
             }
         }
     }
 
     function init() {
         document.body.addEventListener('input', handleInputChange);
+        document.body.addEventListener('change', handleInputChange);
 
         ui.resultado.copyBtn.addEventListener('click', () => {
             if (state.resultado.valorNumerico !== null) copyToClipboard(state.resultado.valorNumerico, ui.resultado.copyBtn);
         });
+
         ui.memoriaCalculo.addEventListener('click', e => {
             const button = e.target.closest('.copy-button');
             if (button && button.dataset.copyValue) copyToClipboard(button.dataset.copyValue, button);
         });
+
         ui.theme.toggleBtn.addEventListener('click', handleThemeToggle);
 
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -331,10 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.theme.darkIcon.classList.remove('hidden');
             ui.theme.lightIcon.classList.add('hidden');
         } else {
+            document.documentElement.classList.remove('dark');
             ui.theme.lightIcon.classList.remove('hidden');
             ui.theme.darkIcon.classList.add('hidden');
         }
+
         renderApp();
     }
+
     init();
 });

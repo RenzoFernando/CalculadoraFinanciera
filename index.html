@@ -1,4 +1,4 @@
-<!-- RENZO FERNANDO MOSQUERA DAZA - Versión Revisada -->
+<!-- RENZO FERNANDO MOSQUERA DAZA -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -77,7 +77,7 @@
                 <div class="result-box">
                     <div class="result-value-wrapper">
                         <div id="resultadoValor" class="result-value">--.--%</div>
-                        <button id="copy-main-result-btn" class="copy-button" title="Copiar valor numérico">
+                        <button id="copy-main-result-btn" class="copy-button" title="Copiar valor numérico" disabled>
                             <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                             <svg class="check-icon hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </button>
@@ -89,7 +89,10 @@
                 <div class="mt-8">
                     <h3 class="sub-title">Memoria de Cálculo Detallada</h3>
                     <div id="memoriaCalculo" class="calculation-memory">
-                        <p class="placeholder-text">Ingresa un valor en la tasa de partida para ver el proceso de conversión.</p>
+                        <div class="placeholder-container">
+                            <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20V16"></path></svg>
+                            <p class="placeholder-text">Ingresa los datos para ver el proceso de conversión.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -103,7 +106,10 @@
                 <span class="step-circle">4</span> Tabla Completa de Equivalencias
             </h2>
             <div id="equivalency-tables-container" class="equivalency-grid">
-                <p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>
+                <div class="placeholder-container">
+                    <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 16H3V8h5zM13 17.5V14h-3v-4h3V6.5l5 5.5-5 5.5zM21 8h-5v8h5V8z"></path></svg>
+                    <p class="placeholder-text-table">Las tablas de equivalencia aparecerán aquí una vez se realice un cálculo válido.</p>
+                </div>
             </div>
         </div>
     </footer>

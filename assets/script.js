@@ -126,8 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const valorNormalizado = String(state.partida.valor).replace(',', '.');
         const valorPartida = parseFloat(valorNormalizado);
 
-        if (isNaN(valorPartida) || valorPartida <= 0) {
-            resetUI('Ingresa un valor de tasa positivo para empezar.');
+        // [CORRECCIÓN] Se elimina la validación que impedía valores negativos o cero.
+        if (isNaN(valorPartida)) {
+            resetUI('Ingresa un valor de tasa numérico para empezar.');
             return;
         }
 
@@ -135,8 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const tasaPartidaDecimal = valorPartida / 100;
         const tea = convertirAPivoteTEA(tasaPartidaDecimal, state.partida, memoria);
 
+        // [CORRECCIÓN] Se mejora el mensaje de error para ser más específico.
         if (isNaN(tea) || !isFinite(tea)) {
-            actualizarUIError('Cálculo inválido. Una tasa periódica anticipada no puede ser igual o mayor al 100%.');
+            actualizarUIError('Cálculo inválido. Las tasas no pueden ser -100% o menores, y las tasas anticipadas no pueden ser 100% o mayores.');
             return;
         }
 
@@ -146,6 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function convertirAPivoteTEA(valor, config, memoria) {
         if (config.tipo === 'Efectiva Anual') {
+            // [CORRECCIÓN] Se añade validación para tasas menores o iguales a -100%
+            if (valor <= -1) return NaN;
             memoria.push(generarPasoMemoria('1. Tasa Pivote (E.A.)', 'La tasa de partida ya es Efectiva Anual.', `E.A. = ${(valor * 100).toFixed(8)}\\%`, valor));
             return valor;
         }
@@ -155,9 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (config.tipo === 'Periódica') {
             ip = valor;
+            // [CORRECCIÓN] Se añade validación para tasas periódicas que resulten en un factor de capitalización <= 0
+            if (ip <= -1) return NaN;
             memoria.push(generarPasoMemoria('1. Tasa Periódica de Partida', 'La tasa de partida es una tasa periódica y se usa directamente.', `i_p = ${(ip * 100).toFixed(10)}\\%`, ip));
         } else { // Nominal
             ip = valor / nper;
+            // [CORRECCIÓN] Se añade validación para tasas periódicas que resulten en un factor de capitalización <= 0
+            if (ip <= -1) return NaN;
             memoria.push(generarPasoMemoria('1. Calcular Tasa Periódica', 'Se divide la tasa nominal por el número de periodos.', `i_p = \\frac{J}{m} = \\frac{${(valor * 100).toFixed(6)}\\%}{${nper}} = ${(ip * 100).toFixed(10)}\\%`, ip));
         }
 
@@ -180,6 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const nper = PERIODOS_MAP[config.periodo].nper;
+
+        // La base para la potencia (1+tea) debe ser positiva para exponentes fraccionarios.
+        // La validación en convertirAPivoteTEA asegura que tea > -1, por lo que (1+tea) > 0.
         let ip = Math.pow(1 + tea, 1 / nper) - 1;
 
         memoria.push(generarPasoMemoria(`${pasoInicial}. Descomponer E.A. a Periódica Vencida`, 'Se halla la tasa periódica vencida equivalente para el periodo de destino.', `i_{p,v} = (1 + E.A.)^{\\frac{1}{m}} - 1 = (1 + ${tea.toFixed(10)})^{ \\frac{1}{${nper}}} - 1 = ${(ip * 100).toFixed(10)}\\%`, ip));
